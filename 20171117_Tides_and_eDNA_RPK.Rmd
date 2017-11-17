@@ -104,7 +104,7 @@ allMeta<-merge(meta, metaNano, all=T)
     allMeta$Salinity_YSI[missingYSI]<-round((allMeta$Salinity_refractometer[missingYSI]*mod[[1]][2])+mod[[1]][1],1)
     allMeta$Salinity_refractometer[missingRefract]<-round((allMeta$Salinity_YSI[missingRefract]*mod2[[1]][2])+mod2[[1]][1],1)
 #format date/time in metadata
- allMeta$DateTime<- as.POSIXct(strptime(paste(allMeta$Date, allMeta$Time), format="%Y%m%d %H:%M:%S"))
+ allMeta$DateTime<- as.POSIXct(strptime(paste(allMeta$Date, allMeta$Time), format="%Y%m%d %H:%M"))
 
  #load GPS coordinates
  
@@ -259,10 +259,6 @@ dataOUT$OTUname<-substr(dataOUT$OTUname, 1,45)
 OTUprob<-dataOUT[dataOUT$OTUname%in%row.names(rrOTUs),]
 OTUprob<-data.frame(OTUprob, tax[match(OTUprob$OTUname, row.names(tax)),])
   
-NOAA2<-NOAA[,-3]; names(NOAA2)[2]<-"bottle" ; NOAA2<-NOAA2[!is.na(NOAA2$bottle),];  NOAA2$bottle<-substr(NOAA2$bottle, 1, 11); NOAA2<-unique(NOAA2)
-  OTUprob<-join(OTUprob, NOAA2, by="bottle", type="left")
-  OTUprob$site<-substr(OTUprob$bottle, 1,2)
-
 #create convenience variables
       Bottles<-substr(colnames(rrOTUs), 1,11)
       Sites<-substr(colnames(rrOTUs), 1,2)
@@ -550,6 +546,9 @@ rrMeta$Community<-1
   rrMeta[,c("sample_name", "DateTime", "Community", "Salinity_refractometer", "Temperature", "Qubit_ngul")],
   NOAA, all=T)
 
+ NOAA2<-NOAA[,-3]; names(NOAA2)[2]<-"bottle" ; NOAA2<-NOAA2[!is.na(NOAA2$bottle),];  NOAA2$bottle<-substr(NOAA2$bottle, 1, 11); NOAA2<-unique(NOAA2)
+   OTUprob<-join(OTUprob, NOAA2, by="bottle", type="left")
+   OTUprob$site<-substr(OTUprob$bottle, 1,2)
 
 ```
 
@@ -605,14 +604,15 @@ An ordination plot of Bray-Curtis distances among each of our xx sequenced repli
 #Community Identity by Site and Tide
 
 
-```{r tide_community_figure, fig.path='figures/', dev=c('png', 'pdf'), echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, fig.cap="\\label{fig:fig4}eDNA Communities by Time, Tide, and Site."}
+```{r tide_community_figure, fig.path='figures/', dev=c('png', 'pdf'), echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, fig.cap="\\label{fig:fig4}eDNA Communities by Time, Tide, and Site. Here we identify community type 1 as the dominant eDNA community (as seen in Figure 3, which appears at every geographic site), and community type 2 as the distinct type occurring only at Twanoh."}
 
 
 #plot w ggplot
-    f<-ggplot(data=NOAA[130:350,], aes(x=DateTime, y=Pred))+
+    ggplot(data=NOAA[130:350,], aes(x=DateTime, y=Pred))+
       ylab("Tidal Height (m)")+
-      xlab("Day and Time")
-    f+geom_smooth(se=F, span=.22, na.rm=F, color="grey")+
+      xlab("Day and Time")+
+      theme_bw()+
+      geom_smooth(se=F, span=.22, na.rm=F, color="grey")+
       geom_point(aes(shape=substr(sample_name,1,2), color=Community), data=NOAA[!is.na(NOAA$sample_name),], size=4)+
       labs(shape="Site", color="Community Type")
 ```
@@ -624,8 +624,7 @@ To examine the relationship of each eDNA community with tide, we first visually 
 #anova(glm(Community~Temperature+Salinity_refractometer+Qubit_ngul+Tide, data=rrMeta, family="binomial"))
 
 kable(as.data.frame(anova(
-  glm(Community~as.numeric(Salinity_refractometer)*as.numeric(Temperature), data=rrMeta, family="binomial", na.action = na.omit)
-                          )), format="latex", align="c", caption="The salinity and temperature of the sampled water mass explain nearly all of the variation in community identity across sites")
+  glm(Community~as.numeric(Salinity_refractometer)*as.numeric(Temperature), data=rrMeta, family="binomial", na.action = na.omit))), format="latex", align="c", caption="The salinity and temperature of the sampled water mass explain nearly all of the variation in community identity across sites")
 
 #stepAIC(glm(Community~Temperature+Salinity_refractometer+Qubit_ngul, data=rrMeta, family="binomial"))
 ```
@@ -643,7 +642,7 @@ To identify ecological factors that might distinguish the two eDNA assemblages o
   #################
     NOAA2<-
       NOAA%>%
-      rename(sample_name="bottle")%>%
+      rename(bottle = sample_name)%>%
       filter(!is.na(bottle))%>%  
       mutate(bottle = substr(bottle, 1, 11), Temperature = as.numeric(Temperature))%>%
       unique()%>%
@@ -696,7 +695,7 @@ To determine x (broadly), we did y. Specifically, we found z. Generally, without
 
 
 
-```{r BrayCurtis_timeSeries, fig.width=6, fig.height=7.2, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:fig4}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Note the relatively small accumulation of Bray-Curtis dissimilarity across time and tides with the exception of the Twanoh event described elsewhere, which shifts the community significantly."}
+```{r BrayCurtis_timeSeries, fig.width=6, fig.height=7.2, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:fig4}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Note the relatively small accumulation of Bray-Curtis dissimilarity across time and tides with the exception of the Twanoh event described elsewhere, which shifts the community significantly. Y-axes identical to facilitate comparison across sites."}
 #bray-curtis timeseries, within sites
   
 LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
@@ -804,51 +803,55 @@ To determine x (broadly), we did y. Specifically, we found z. Generally, without
 
 To examine the turnover between ecological communities that occured in the span of X hours at a single site (despite previous directional shifts in tide at this location not resulting in a community change-over) changing communities), we focused further on the community composition, richness, and diversity of the two samples taken at Twanoh on March 12 at 11:00 (Community 1) and 13:00 (Community 2)...  
 
-```{r TW_Family_turnover, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F}
-FamilyCounts<-  
-  aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_family[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
-  Col2RN(1)
+```{r TW_Order_turnover, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:fig5}Most influential OTUs, plotted by taxonomic Order, distinguishing the two ecological communities observed in water samples from Twanoh State Park. Shown are the taxonomic Orders of OTUs with at least 1000 reads in the rarefied dataset, and having a constrained canonical correspondence analysis (CCA) score of greater than 0.7 (absolute value), which in our dataset most clearly divides the two communities. See text for CCA details. The vertical black lines in the chart delineate the communities identified previously by NMDS (see Figure 3a), with the time of each sample given along the x-axis, showing the shift from one community to the other -- and then largely back again -- within less than 24 hours. Note that each block of samples reflects a different point in the tidal cycle, and that the first two time points indicate a continuity of community membership despite a change in tide (see Figure 4)."}
+#just TW
+  TW.OTUs<-rrOTUs[,grepl("TW", colnames(rrOTUs))]; TW.OTUs<-TW.OTUs[rowSums(TW.OTUs)>0,]
+z<-cca(t(TW.OTUs)~rrMeta$Community[rrMeta$Site.x=="Twanoh"])
 
+#plot(data.frame(z$CCA$v, rowSums(TW.OTUs))) #visualize influential data points
+InfluentialOTUs<-TW.OTUs[which(rowSums(TW.OTUs)>1000&abs(z$CCA$v)>.7),]
+InfluentialOTUs<-aggregate.data.frame(InfluentialOTUs, list(tax[row.names(InfluentialOTUs),"OTU_taxon_order"]), FUN=sum)
+#InfluentialOTUs<-InfluentialOTUs[-match(c("No hits", "Not assigned"), InfluentialOTUs[,1]),]
+InfluentialOTUs<-Col2RN(InfluentialOTUs, 1)
+InfluentialOTUs<-aggregate(t(InfluentialOTUs), list(substr(colnames(InfluentialOTUs),1,11)), sum)  #aggregate by bottle
+  InfluentialOTUs<-t(Col2RN(InfluentialOTUs, 1))
 
-FamilyCumProb<-
-  dataOUT%>%
-  ddply(c("bottle", "OTU_taxon_family"), summarize, CumProb=cumProb(probOcc))
-FamilyCumProb[,4:13]<-dataOUT[match(FamilyCumProb$bottle, dataOUT$bottle),c(26,28:35)]
+InfluentialOTUsMelted<- melt(as.matrix(InfluentialOTUs))
 
-
-#Heatmap by Cumulative Probability
-TW.FamilyCumProb<-subset(FamilyCumProb, FamilyCumProb$site=="TW")
-  TW.FamilyCumProb<-TW.FamilyCumProb[!is.na(TW.FamilyCumProb$OTU_taxon_family),]
-  TW.FamilyCumProb$bottle<-drop.levels(TW.FamilyCumProb$bottle)
-    v<-spread(TW.FamilyCumProb[,1:3], key=OTU_taxon_family, value=CumProb) #use for ordering families by probability
-  TW.FamilyCumProb$OTU_taxon_family <- factor(TW.FamilyCumProb$OTU_taxon_family, levels=names(sort(colSums(v[,2:ncol(v)]))))
-    
-            # (p <- ggplot(TW.FamilyCumProb, aes(bottle, OTU_taxon_family)) + 
-            #     geom_tile(aes(fill = CumProb), colour = "white") +
-            #     geom_vline(aes(xintercept=6.5),colour="black")+
-            #     geom_vline(aes(xintercept=9.5),colour="black")+
-            #     scale_fill_gradient(low = "white",high = "steelblue")+
-            #     theme(axis.text.x=element_text(angle=90, hjust=1))
-            # )
-
-TW.FamilyCountsSums<-FamilyCountsSums[,grepl("TW", colnames(FamilyCountsSums))]
-  TW.FamilyCountsSums<-TW.FamilyCountsSums[rowSums(TW.FamilyCountsSums)>20,]  #only show more common things?
-    SortedFams<-names(sort(rowSums(TW.FamilyCountsSums), decreasing = F)) #ordering by count
-    TW.FamilyCountsSums<-melt(TW.FamilyCountsSums); colnames(TW.FamilyCountsSums)<-c("Family","Bottle","CumulativeReadCount")
-    TW.FamilyCountsSums$Family<-factor(TW.FamilyCountsSums$Family, levels=SortedFams)
-    
-    (q <- ggplot(TW.FamilyCountsSums, aes(Bottle, Family)) + 
-        geom_tile(aes(fill = log(CumulativeReadCount)), colour = "white") +
-        geom_vline(aes(xintercept=6.5),colour="black")+
-        geom_vline(aes(xintercept=9.5),colour="black")+
-        scale_fill_gradient(low = "white",high = "steelblue")+
-        theme(axis.text.x=element_text(angle=90, hjust=1))+
-        guides(fill=guide_legend(title="Log(Reads)"))
-    )
-    
+ggplot(InfluentialOTUsMelted[grepl("TW", InfluentialOTUsMelted$Var2),], aes(x=Var2, y=Var1, fill=log(value)))+
+  geom_tile()+
+  theme_bw()+
+  scale_fill_gradient(low = "white",high = "steelblue", name="Log(Reads)")+
+  ggtitle("Twanoh, Most Influential OTUs by Taxon")+
+  scale_y_discrete("OTU by Taxon", labels=row.names(InfluentialOTUs), expand=c(0,0))+
+  scale_x_discrete("Sample Date and Time", labels=format(rrMeta$DateTime[rrMeta$Site.x=="Twanoh"], "%Y-%m-%d %H:%M"), expand=c(0,0))+
+  geom_vline(aes(xintercept=6.5),colour="black")+
+  geom_vline(aes(xintercept=9.5),colour="black")+
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5, margin = margin(t = 10, b = 15)),
+        legend.position="bottom",
+        axis.text.x = element_text(angle = 90, hjust = 1, size=6))
 
 ```
 
+```{r taxon_attribute_table, echo=F, warning=F, message=F}
+
+taxonAttributes<-data.frame(
+   Order=row.names(InfluentialOTUs),
+   Kingdom=c("Animalia", "Heterokonta", "Heterokonta", "Plantae", "Heterokonta", "Dinoflagellata","Oomycota", "Animalia", "Animalia"),
+   Mobility=c("Motile", "Planktonic", "Sessile", "Planktonic", "Planktonic", "Planktonic", "Unknown", "Sessile", "Sessile"),
+   Habitat=c("Marine", "Marine", "Marine", "Marine", "Marine", "Marine", "Terrestrial/Aquatic", "Marine", "Marine"),
+   Cellularity=c("Multicellular", "Single-celled", "Multicellular", "Single-celled", "Single-celled", "Single-celled", "Single-celled", "Multicellular", "Multicellular")
+)
+
+kable(taxonAttributes, format="latex", align="c")
+
+
+```
 
 
 
