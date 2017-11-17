@@ -40,17 +40,14 @@ knitr::knit_hooks$set(inline = function(x) {
 
 ```{r loadLibraries_etc, echo=F, error=F, message=FALSE, warning=F, include=FALSE}
 ##########LOAD LIBRARIES and FUNCTIONS#############
-tidedir<-"/Users/rpk/GoogleDrive/Kelly_Lab/Projects/TideEffectHoodCanal_Gallego/"
-#tidedir<-"/Users/rgallego/Google Drive File Stream/My Drive/Kelly_Lab/Projects/TideEffectHoodCanal_Gallego/"
-setwd(paste0(tidedir,"Analysis"))
-Data_dir<-paste0(tidedir,"Data")
 #How to check if you have all needed packages installed, introducing: uptodate.R
-source(paste0(tidedir,"uptodate.R"))
-libs=c("vegan","plotrix","MASS","data.table", "gdata","lattice","plyr","dplyr", "arm", "gridExtra", "ggplot2", "eeptools", "taxize", "lmtest","readxl", "Biostrings", "googlesheets", "tidyr", "ggmap", "xtable", "tibble","pander","RColorBrewer", "ggfittext", "treemapify", "kableExtra", "knitr")
+source("uptodate.R")
+libs=c("vegan","plotrix","MASS","data.table", "gdata","lattice","plyr", "gridExtra", "readxl", "Biostrings", "ggmap", "xtable", "pander","RColorBrewer", "ggfittext", "treemapify", "kableExtra", "knitr", "tidyverse", "RCurl")
 uptodate(libs)
-#lapply(libs, require, character.only = TRUE)
+lapply(libs, require, character.only = TRUE)
 
-source("multiplot.R") #ggplot multiplot function from file
+multiplot.script<-getURL("https://raw.githubusercontent.com/larmarange/JLutils/master/R/multiplot.R", ssl.verifypeer = FALSE); eval(parse(text = multiplot.script))  #ggplot multiplot function from github
+
 bit=function(x){print(x[c(1:10),c(1:10)]); print(dim(x))}  #shows top-left corner of a data.frame/matrix; useful for large datasets
 colMax <- function(data) sapply(data, max, na.rm = TRUE)
 Col2RN<-function(df, x){row.names(df)<-df[,x]; df<-df[-x]; return(df)} #convert column to row.names
@@ -67,8 +64,8 @@ gg_colors <- function(n) {
 #Note: this project required merging data from two different sequencing runs, a MiSeq PE300 run and a MiSeq Nano PE300 run.  So below the code loads the metadata from each of those, then combines the two, then loads the combined OTU data.
 
 #MiSeq full run metadata
-  	meta=read.csv(paste0(Data_dir, "/COI/FullRun/metadata_wTides.csv"))
-  	sampleInfo<-as.data.frame(gs_read(gs_title("Step1_Samples"))) #field data for covariates; read from googlesheets
+  	meta=read.csv("MiSeq_metadata_wTides.csv")
+  	sampleInfo<-read.csv("SampleCovariates.csv")
   		names(sampleInfo)[1]<-"original_sample"
   		meta<-merge(meta, sampleInfo, by="original_sample", all=T)
   		meta<-meta[1:99,]
@@ -78,7 +75,7 @@ gg_colors <- function(n) {
       meta$lib_tags<-lib_tags #add lib tags to metadata
       meta$run<-"20170727_MiSeq"
 ###get metadata from nano run, and merge
-    metaNano=read.csv(paste0(Data_dir,"/COI/Nano_banzai_out_20170719_1420/metadata_correctedRamon_20170926.csv"))
+    metaNano=read.csv("MiSeq_nano_metadata.csv")
     #sampleInfo<-as.data.frame(gs_read(gs_title("Step1_Samples"))) #field data for covariates
     #names(sampleInfo)[1]<-"original_sample"
     metaNano <-merge(metaNano, sampleInfo, by="original_sample", all=T)
@@ -114,7 +111,7 @@ allMeta<-merge(meta, metaNano, all=T)
 ##########LOAD OTU Data  ##############################
 #OTU data
 allOTUs<-
-	read.table(paste0(Data_dir, "/COI/CombinedNanoFullRun/OTUs_swarm/OTU.map")) %>%
+	read.table("OTU.map") %>%
 	filter(V2%in%allMeta$lib_tags) 
   allOTUs$V2<-allMeta $sample_name[match(allOTUs$V2, allMeta$lib_tags)]
   allOTUs<-spread(allOTUs, key=V2, value=V3, fill=0)%>%
@@ -124,12 +121,11 @@ allOTUs<-
   OTUcount1<-nrow(allOTUs)
   
   ###First decontamination step: occupancy modeling analysis
-load("OccupancyModeling/ProbOccCOI_dataOUT08_22_46.Rdata")
+load("ProbOccCOI_dataOUT08_22_46.Rdata")
   #filter OTUs by max occupancy prob; keeping those with at least 80% chance of being truly present, based upon distribution of occupancy probs
         a<-aggregate(dataOUT$probOcc, list(dataOUT$OTUname), max)
           a<-a[a$x>0.8,]  #take only OTUs for which at least one population has a high probability of being truly present.
         allOTUs<-allOTUs[match(a$Group.1, row.names(allOTUs)),]; rm(a)
-	allOTUs<-allOTUs[,-grep("LL20170312C.1", colnames(allOTUs), ignore.case=T)]#mislabeled sample
 	allOTUs <-allOTUs[order(rowSums(allOTUs), decreasing=T),] #order by rowSums
 	allOTUs <-allOTUs[,order(colnames(allOTUs))] #order column names
 	
@@ -137,7 +133,7 @@ load("OccupancyModeling/ProbOccCOI_dataOUT08_22_46.Rdata")
 	  OTUcount2<-nrow(allOTUs)
 
 #for cumulative probability of individual Families	  
-    load("ShinyApp_Occupancy_HoodCanal/OTUprob.RData")
+    load("OTUprob.RData")
     dataOUT<-OTUprob; rm(OTUprob)
 	  
 	  
@@ -221,7 +217,7 @@ normparams=fitdistr(unlist(distList.tri), "normal")$estimate  #fit normal distri
 	
 #######################################################
 ##########LOAD Taxononmic Annotation Data  ############
-tax<-read.csv("blasting/masterDNAtable_20171012.csv", header=T, row.names=1)
+tax<-read.csv("masterTaxonomyTable_20171012.csv", header=T, row.names=1)
     tax<-tax[order(tax$OTU_abundance, decreasing=T),]
 #######################################################
 #######################################################
@@ -229,7 +225,7 @@ tax<-read.csv("blasting/masterDNAtable_20171012.csv", header=T, row.names=1)
 
 ####Load tidal data from NOAA
 #got tidal data from https://tidesandcurrents.noaa.gov/noaatidepredictions.html
-NOAA<-read.table(paste0(Data_dir,"/NOAAtideData_UnionMarch2017.txt"), skip=13, header=T)
+NOAA<-read.table("NOAAtideData_UnionMarch2017.txt", skip=13, header=T)
 	NOAA$Time<-format(strptime(NOAA$Time, format="%H:%M"), "%H:%M")
 	NOAA$Date<-as.Date(NOAA$Date)
 	NOAA$DateTime<-as.POSIXct(strptime(paste(NOAA$Date, NOAA$Time, sep=" "), format="%Y-%m-%d %H:%M"))
