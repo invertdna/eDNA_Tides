@@ -68,7 +68,7 @@ gg_colors <- function(n) {
   	sampleInfo<-read.csv("SampleCovariates.csv")
   		names(sampleInfo)[1]<-"original_sample"
   		meta<-merge(meta, sampleInfo, by="original_sample", all=T)
-  		meta<-meta[1:99,]
+  		meta<-meta[1:99,] #get rid of extra empty rows
   	lib_tags= paste0("ID1=",meta$pri_index_name, ";ID2A=",meta$tag_sequence, ";ID2B=",as.character(reverseComplement(DNAStringSet(meta$tag_sequence))))  
   	  meta<-meta[-4,] #missing seq data for this sample
   	lib_tags<-lib_tags[-4]  #missing seq data for this sample
@@ -89,10 +89,12 @@ gg_colors <- function(n) {
 #create merged metadatafile
 allMeta<-merge(meta, metaNano, all=T)
     allMeta$sample_name<-as.character(allMeta$sample_name)
+    allMeta<-allMeta[order(allMeta$sample_name),]
     #need to disambiguate sample names across runs and homogenize naming conventions
-    allMeta$sample_name[99:106]<-paste0("TW20170311", gsub("TW11", "",allMeta$sample_name[99:106]))
-    allMeta$sample_name[107:110]<-paste0("LL20170312", gsub("LL12", "",allMeta$sample_name[107:110]))
-    allMeta$sample_name[111]<-"Ostrich4"
+    allMeta$sample_name[74:81]<-paste0("TW20170311", gsub("TW11", "",allMeta$sample_name[74:81]))
+    allMeta$sample_name[1:4]<-paste0("LL20170312", gsub("LL12", "",allMeta$sample_name[1:4]))
+    allMeta$sample_name[34]<-"Ostrich4"
+    allMeta<-allMeta[order(allMeta$sample_name),]
     
     #interpolate/harmonize salinity measurements [we measured with two different instruments -- a Hannah multi-probe (here, called "YSI", because that was shorter), and a hand-held analog refractometer. The refractometer proved more reliable and accurate.]
     mod<-lm(Salinity_YSI~Salinity_refractometer, data=allMeta)
@@ -126,8 +128,9 @@ load("ProbOccCOI_dataOUT08_22_46.Rdata")
         a<-aggregate(dataOUT$probOcc, list(dataOUT$OTUname), max)
           a<-a[a$x>0.8,]  #take only OTUs for which at least one population has a high probability of being truly present.
         allOTUs<-allOTUs[match(a$Group.1, row.names(allOTUs)),]; rm(a)
-	allOTUs <-allOTUs[order(rowSums(allOTUs), decreasing=T),] #order by rowSums
-	allOTUs <-allOTUs[,order(colnames(allOTUs))] #order column names
+	    allOTUs<-allOTUs[,-grep("LL20170312C.1", colnames(allOTUs), ignore.case=T)]#mislabeled sample
+      allOTUs <-allOTUs[order(rowSums(allOTUs), decreasing=T),] #order by rowSums
+	    allOTUs <-allOTUs[,order(colnames(allOTUs))] #order column names
 	
 	READcount2<-sum(sum(allOTUs))
 	  OTUcount2<-nrow(allOTUs)
@@ -244,7 +247,10 @@ row.names(rrOTUs)<-gsub(";size=","",row.names(DECONTAM))
 	rrOTUs<-rrOTUs[rowSums(rrOTUs)>0,]
 	rrMeta<-allMeta[match(colnames(rrOTUs), allMeta$sample_name),]   #metadata for columns included in rrOTUs
 	row.names(rrOTUs)<-substr(row.names(rrOTUs),1,45) #truncate row.names to match those in the taxonomy database
+
 	
+  #prune taxonomic info to just OTUs present in rrOTUs
+	rrTax<-tax[match(row.names(rrOTUs), row.names(tax)),]
 #######################################################
 #######################################################	
 	
@@ -322,7 +328,7 @@ map <- get_map(location = c(lon = mean(longs), lat = mean(lats)), zoom = 10,
 plotmap<-ggmap(map)
 
 plotmap + 
-	geom_point(data=data.frame(lats,longs), aes(x=longs, y=lats), color="red", size=4) +
+	geom_point(data=data.frame(lats,longs), aes(x=longs, y=lats), color="red", size=3) +
 	geom_text(data=data.frame(lats,longs, sitenames), x=longs, y=lats-0.02, label=sitenames, fontface = "bold") +
 	ggtitle("Sampling Locations" , subtitle="Hood Canal, Washington, USA") +
 	theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) ) +
@@ -335,7 +341,7 @@ plotmap +
 Our study design aimed to distinguish the effects of tide from site-level community differences and from sampling error. Consequently, we sampled each of three geographic locations (Fig 1; GPS coordinates given in Suppl. Table 1) four times -- twice during an incoming tide, and twice during an outgoing tide -- over a ca. 28-hour period. We collected three 1-L water samples for eDNA analysis (ca. 10m apart) at each site during each sampling event. Each sample was collected at the surface (< 0.5m depth), using a ca. 3m-long pole with plastic collection bottle attached. We kept samples on ice until they could be processed (within hours of collection). We filtered 500mL from each sample onto cellulose acetate filters (47mm diameter; 0.45um pore size) under vacuum pressure, and preserved the filter at room temperature in Longmire's buffer following Renshaw et al. (2015). Deionized water served as a negative control for filtering. We measured water temperature and salinity with a hand-held multiprobe (Hanna Instruments, Inc. model XXXX), as well as measuring salinity with a handheld manual refractometer.
 
   
-```{r create_sampling_table, echo=F}
+```{r Table1_sampling_table, echo=F}
 #xtabs(~Sites+Tides)
 f<-as.data.frame(table(Bottles, Sites, Tides))
   f$Sites<-gsub("LL", "Lilliwaup", f$Sites)
@@ -387,7 +393,7 @@ We stress that a single genetic locus provides only a biased and incomplete view
 
 We assigned a taxonomic name to each OTU sequence using blastn (Camacho et al., 2009) on a local version of the full NCBI nucleotide database (current as of August 2017), recovering up to 100 hits per query sequence and reconciling conflicts among equally good matches using the last common ancestor approach implemented in MEGAN 6.4 (Huson et al., 2011). 
 
-[X% of OTUs could be annotated at Y level]
+`r 100*(sum(!is.na(rrTax$OTU_taxon_MEGAN))/nrow(rrOTUs))`% of OTUs could be annotated at some taxonomic level, with over half (`r 100*(sum(!is.na(rrTax$OTU_taxon_family))/nrow(rrOTUs))`%) being annotated to the level of taxonomic Family or lower.
 
 We then report results for the most common XX OTUs, which account for the majority of the observed differences among ecological communities, with the full dataset being available as Supplemental Information.
 
@@ -398,16 +404,9 @@ We then report results for the most common XX OTUs, which account for the majori
 
 ```{r create_distance_matrix, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, results='hide'}
 
-##Create distance matrices. Counts will use Bray-Curtis; occupancy probabilities will use Bray or?
+##Create distance matrices. Counts will use Bray-Curtis
 
 OTU.count.distance<-as.matrix(vegdist(t(rrOTUs), method="bray", diag=F, upper=F, binary=F))
-OTU.prob.distance<-
-  OTUprob[,c("OTUname","bottle","probOcc")]%>%
-  spread(key=bottle, value=probOcc)%>%
-  Col2RN(1)%>%
-  t()%>%
-  vegdist(method="manhattan")%>%
-  as.matrix()
 
 FamilyCounts<-  
   aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_family[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
@@ -427,24 +426,10 @@ Family.count.distance<-
   vegdist(method="bray")%>%
   as.matrix()
 
-Family.prob.distance<-
-  aggregate(OTUprob$probOcc, list(OTUprob$OTU_taxon_family, OTUprob$bottle), FUN=cumProb) %>%
-  spread(key = Group.2, value = x) %>%
-  Col2RN(1)%>%
-  t()%>%
-  vegdist(method="manhattan")%>%
-  as.matrix()
-
-
 #apportioning variance: OTU counts
 invisible(
   OTU.count.adonis<-adonis(OTU.count.distance~rrMeta$Tide+rrMeta$Site.x+rrMeta$SamplingEvent+rrMeta$original_sample)$aov.tab
 )
-#print(xtable(OTU.count.adonis))  #use this to print table of Adonis results; otherwise, use the code in the next chunk to plot chart.
-
-#adonis(Family.count.distance~rrMeta$Tide+rrMeta$SamplingEvent+rrMeta$original_sample)
-#adonis(Family.prob.distance~rrMeta$Tide[match(colnames(Family.prob.distance),     rrMeta$original_sample)]+rrMeta$SamplingEvent[match(colnames(Family.prob.distance), rrMeta$original_sample)])
-#adonis(OTU.prob.distance~rrMeta$Tide[match(colnames(OTU.prob.distance), rrMeta$original_sample)]+rrMeta$SamplingEvent[match(colnames(OTU.prob.distance), rrMeta$original_sample)])
 
 #Site-specific Tide analysis
 OTU.count.by.site<-split.data.frame(OTU.count.distance, rrMeta$Site.y)
@@ -462,18 +447,14 @@ invisible(
 TW.OTU.count.adonis<-  adonis(TW~rrMeta$Tide[rrMeta$Site.y=="Twanoh"]+rrMeta$SamplingEvent[rrMeta$Site.y=="Twanoh"]+rrMeta$original_sample[rrMeta$Site.y=="Twanoh"])
 )
 
-##Do the appropriate samples/replicates cluster together?  2 views: heatmap and CCA
 
 ##NMDS
 	nmds.OTU.count<-metaMDS(OTU.count.distance, diag=T, upper.tri=T, trymax=1000, trace=0)
-	
 	NMDS.RESULTS<-data.frame(
 	  OTU.count=scores(nmds.OTU.count),
 	  Sample=row.names(scores(nmds.OTU.count)),
 	  Bottles, SamplingEvents, Sites, SeqRuns, Dates, Tides, Sal, Temp
 	  )
-
-
 ```	
 
 To evaluate the spatial and temporal turnover between eDNA communities, we first apportioned the observed variation in COI Bray-Curtis dissimilarities (calculated using OTU read counts) among tides (incoming vs. outgoing), sampling sites, sampling events within a site, biological replicates (individual bottles of water taken during the same sampling event), and technical replicates (PCR replicates from the same bottle of water). Across the whole dataset, ecological communities at different sampling sites (20-50km apart) account for the largest fraction of the variance (`r OTU.count.adonis$R2[2]`), and different sampling events within those sites account for a similarly high proportion (`r OTU.count.adonis$R2[3]`). In contrast, biological replicates (N = 3 bottles of water per sampling event, taken ca. 10m apart) account for a small fraction (`r OTU.count.adonis$R2[4]`) of the variance, with differences among tides accounting for the smallest fraction of the variance in community dissimilarity (`r OTU.count.adonis$R2[1]`). The remainder -- `r OTU.count.adonis$aov.tab$R2[5]` -- is largely due to differences among technical PCR replicates (N = 3-5 per bottle of water), much of which derives from stochasticity in the presence of rare OTUs (Supplemental Figure 1). The comparitively low variance issuing from biological and technical replicates relative to sampling events and sites affords the resolution necessary to further examine questions of community composition across space and time. 
@@ -496,7 +477,7 @@ q0.plot<-ggplot(q, aes(area = R2, label=Level))+
   geom_treemap(fill=brewer.pal(6, "Blues")[2:6], color=1, alpha=.8)+
   geom_treemap_text(colour = "black", place = "centre", grow = FALSE, size=10)+
   ggtitle("All Sites")+
-  theme(aspect.ratio=1/1.618)
+  theme(aspect.ratio=1/1.618, plot.margin = margin(2, 2, -2, 2, "pt"), plot.background = element_blank())
   
 
 
@@ -542,12 +523,11 @@ q2.plot<-ggplot(q2, aes(area = R2, label=Level))+
   ggtitle("Twanoh")+
   theme(aspect.ratio=1/1.618)
           
-           
- #pdf("adonisTreemaps.pdf")
+
+ #do the actual plotting           
  multiplot(q0.plot, q1.plot, q2.plot, q3.plot,
            layout=matrix(c(1,2,1,3,1,4), nrow=2, ncol=3))     
- #dev.off()  
-  
+
   
 ```
 
@@ -575,7 +555,7 @@ rrMeta$Community<-1
 
 
 
-```{r multiplot_NMDS_BottleTide, fig.width=6, fig.height=7.2, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:fig3}(A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Bray-Curtis dissimilarities among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). (B) The same data shown as a heatmap. The outlying Twanoh samples stand out as the darker portions in the upper-right."}     	
+```{r multiplot_NMDS_BottleTide, fig.width=6, fig.height=7.2, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:fig3}(A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Bray-Curtis dissimilarities among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). (B) The same data shown as a heatmap. Only the Twanoh samples (upper right) stand out as having substantial heterogeneity, reflecting the two different communities present during different sampling events at that site."}     	
 fig3a<-      ggplot() + 
       geom_polygon(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,fill=Tides,group=Bottles), alpha=0.3) +
       geom_text(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,label=Sites),alpha=0.4,size=2) +  # add the species labels
@@ -594,7 +574,7 @@ fig3a<-      ggplot() +
             panel.grid.major = element_blank(),  #remove major-grid labels
             panel.grid.minor = element_blank(),  #remove minor-grid labels
             plot.background = element_blank(), 
-            legend.position = "bottom",
+            legend.position = "right",
             plot.title = element_text(hjust = 0.5),
             plot.margin = margin(0,0,20,0, unit="pt")
             ) +
@@ -603,10 +583,15 @@ fig3a<-      ggplot() +
       distmat<-as.matrix(vegdist(t(rrOTUs[,]), method="bray", diag=F, upper=F, binary=F))
       distmat<-melt(distmat)
 
-      fig3b<-  ggplot(distmat, aes(Var1, Var2, fill=value))+
+    fig3b<-ggplot(distmat, aes(Var1, Var2, fill=as.numeric(value)))+
           geom_tile()+
-  guides(fill=guide_legend("Bray-Curtis\nDissimilarity"))+
-  xlab("Sample")+ylab("Sample")
+          xlab("Sample")+ylab("Sample")+
+          guides(fill=guide_legend("Bray-Curtis\nDissimilarity"))+
+          theme(axis.text.x = element_text(angle=90, size=6),
+            axis.text.y = element_text(size=6),
+            panel.background = element_blank(),
+            plot.background = element_blank())
+  
   #heatmap(distmat, symm=T, labRow = Sites, labCol=Sites) #labRow=rrMeta$run, labCol=rrMeta$run
 
 multiplot(fig3a, fig3b)
@@ -956,6 +941,9 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 		outBC<-unlist(MeanBC)
 		xdata<-rep(1:length(unique(binNo)), each=length(outBC)/length(unique(binNo)))
 
+		#ggplot(aes(y=outBC[1:1750], x=xdata[1:1750]))+geom_boxplot()
+		
+		
 		boxplot(outBC[1:1750]~xdata[1:1750],col="skyblue", main="Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness", xlab="Percentile OTU Commonness", ylab="Mean Bray-Curtis Among Technical Replicates", las=2)
 
 ```
