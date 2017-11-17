@@ -899,12 +899,12 @@ kable(data.frame(
   Site=c("Lilliwaup State Park","Potlatch State Park","Twanoh State Park"),
   Latitude=c(47.462,47.377,47.378),
   Longitide=c(-123.113,-123.150,-122.973)
-), format="latex", align="c", caption="Supplemental Table 1: Sampling Sites")
+), format="latex", align="c", caption="Supplemental Table 1: Sampling Sites in Hood Canal, Washington, USA. Samples were taken intertidally, in water less than 1m deep.")
 ```
 
 
 
-```{r Supplement_Rarefaction, fig.width=4, fig.height=6, fig.path='figures/', dev=c('png', 'pdf'), echo=F, message=F}
+```{r Supplement_Rarefaction, fig.width=4, fig.height=6, fig.path='figures/', dev=c('png', 'pdf'), echo=F, message=F, fig.cap="\\label{fig:SuppFig1} Differences among rarefaction draws expressed as median Bray-Curtis dissimilarities. The lack of variation in median dissimilarity among rarefaction draws underscores the fact that the results we present in the main manuscript do not differ substantially among different rarefaction draws."}
 
 #Note: the loop below takes a minute or two to process, so I have saved output to save time.
 # rrSupplement<-list()
@@ -923,14 +923,13 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 ```
 
 
-
-###SUPPLEMENTAL FIGURE: Looking at that stochastic variation among technical replicates:Stochasticity dominates after the first few percentiles (i.e., the first few hundred OTUs). This is interesting, but expected. [Jaccard/binary looks the same, but slightly elevated, as you'd expect.]
-```{r stochastic_variation_rareTail, echo=FALSE,warning=FALSE,message=FALSE, error=FALSE,  fig.height = 4, fig.width = 5}
+```{r stochastic_variation_rareTail, echo=FALSE,warning=FALSE,message=FALSE, error=FALSE,  fig.height = 4, fig.width = 5, fig.cap="\\label{fig:SuppFig2}Variation among technical (PCR) replicates, expressed as Bray-Curtis dissimilarity among replicates using data subsets according to OTU commonness. Replicates are similar with respect to common OTUs, but stochasticity quickly dominates as OTUs become rarer, such that PCR replicates appear quite different with respect to OTUs in the bottom 90 percent of commonness."}
 		binNo<-cut(1:nrow(rrOTUs), 100, labels=F)  #N equal-sized groups
 		MeanBC<-list()
 		replicates=substr(colnames(rrOTUs), 1,11) #create vector of replicate names
 		for (j in 1:length(unique(binNo))){
-			distmat=vegdist(t(rrOTUs[binNo==j,]), upper=T, diag=T) #calculate bray-curtis distances
+			distmat<-vegdist(t(rrOTUs[binNo==j,]), upper=T, diag=F)
+			  #calculate bray-curtis distances
 			distList=list(NA) ; distList.tri=list(NA); index=1  #create empty lists to fill in, and then create list of matrices, each of which is distances among replicates
 				index=1
 				for (i in unique(replicates)){
@@ -939,14 +938,25 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 							distList.tri[[index]]<-	distList[[index]][upper.tri(	distList[[index]])]
 					index=index+1
 				}
-			MeanBC[[j]]<-unlist(lapply(distList, mean))
+        for (i in 1:length(distList)){if(is.matrix(distList[[i]])) diag(distList[[i]])<-NA}			
+				MeanBC[[j]]<-unlist(lapply(distList, mean, na.rm=T))
 		}
 		outBC<-unlist(MeanBC)
 		xdata<-rep(1:length(unique(binNo)), each=length(outBC)/length(unique(binNo)))
-
-		#ggplot(aes(y=outBC[1:1750], x=xdata[1:1750]))+geom_boxplot()
+    rareOutData<-data.frame(xdata, outBC)
+		  rareOutData<-filter(rareOutData, outBC>0&!is.na(outBC))
+		
+		ggplot(rareOutData[1:1699,], aes(y=outBC, x=factor(xdata)))+
+		  geom_boxplot(fill="skyblue")+
+		  theme_bw()+
+		  xlab("Percentile OTU Commonness")+ylab("Mean Bray-Curtis Among Technical Replicates")+
+		  ggtitle("Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness")+
+		  theme(
+		    plot.title=element_text(hjust=0.5, size=10),
+		    axis.text.x = element_text(angle=90, size=5)
+		    )
 		
 		
-		boxplot(outBC[1:1750]~xdata[1:1750],col="skyblue", main="Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness", xlab="Percentile OTU Commonness", ylab="Mean Bray-Curtis Among Technical Replicates", las=2)
+#		boxplot(outBC[1:1750]~xdata[1:1750],col="skyblue", main="Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness", xlab="Percentile OTU Commonness", ylab="Mean Bray-Curtis Among Technical Replicates", las=2)
 
 ```
