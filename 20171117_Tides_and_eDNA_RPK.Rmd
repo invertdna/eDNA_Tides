@@ -300,7 +300,7 @@ NOAA2<-NOAA[,-3]; names(NOAA2)[2]<-"bottle" ; NOAA2<-NOAA2[!is.na(NOAA2$bottle),
 
 #Introduction
 
-As environmental DNA (eDNA) becomes an increasingly important tool in ecological research (REFS), it is critical to understand how techniques for eDNA collection and analysis perform under real-world conditions (REFS). In particular, we must characterize the spatial and temporal resolution of amplicon-sequencing studies in order to confidently detect ecological patterns in the field (REFS). 
+As environmental DNA (eDNA) becomes an increasingly important tool in ecological research (~\cite{sigsgaard2016population,deiner2017environmental} ), it is critical to understand how techniques for eDNA collection and analysis perform under real-world conditions (~\cite {MEC:MEC13481}). In particular, we must characterize the spatial and temporal resolution of amplicon-sequencing studies in order to confidently detect ecological patterns in the field (~\cite{o2017spatial}). 
 
 Most efforts to quantify the behavior of eDNA in the field have taken the form of quantitative PCR (qPCR) studies, in which the concentration of target template DNA -- either a particular target species or else a synthesized template not otherwise occurring in nature -- is measured over space or time. [Paragraph on these studies, w citations.]
 
