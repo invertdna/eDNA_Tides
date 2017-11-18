@@ -7,7 +7,7 @@ output:
     fig_caption: yes
     keep_tex: yes
     template: peerj.sty
-  bibliography: moncho.bib
+bibliography: moncho.bib
   html_document:
     fig_caption: yes
     force_captions: yes
@@ -612,12 +612,13 @@ An ordination plot of Bray-Curtis distances among each of our sequenced replicat
 
 To examine the relationship of each eDNA community with tide, we first visually examined the mapping of tidal direction onto our ordination analysis (Figure 3a; polygon color) and plotted community membership of each sample across the tidal cycle during collection (Figure 4). Both qualitatively indicate a lack of association between tidal direction or height and the two eDNA communities. Quantitatively, by sampling event, it is clear that community is independent of tidal height (p = `r round(summary(lm(Pred~Community, data=NOAA))$coeff[8], 3)`; linear regression) and of tidal direction (incoming vs. outgoing; p = `r round(chisq.test(x=rrMeta$Tide, y=rrMeta$Community)$p.value, 3)`; $\chi^2$), but is related imperfectly to site identity (p = `r fisher.test(rrMeta$Site.x, rrMeta$Community)$p.value`; Fisher's exact test), as suggested previously (Figures 3a, 4). The single Twanoh sample belonging to eDNA Community 1 suggests that geography does not fully explain differences between these communities, and that ecological variables warrant further investigation as driving differences in communities.
 
+##Environmental Co-variates Assocated with Community Change
+To identify ecological factors that might distinguish the two eDNA assemblages observed, we modeled the association of each sample's temperature, salinity, DNA extraction concentration (which we speculate is a proxy for primary productivity), and site identity with communities 1 and 2. Salinity and temperature explain nearly all of the variance in community type: we observe community 2 in fresher (< 20ppt) and colder (< 9\(^\circ\)C) water than we find community 1. Twanoh, in the southeastern portion of Hood Canal most distant from the ocean, routinely experiences these kinds of fresher, colder water events in our sampling month (March), unlike the main stem of the Canal (Supplemental Figures 3 and 4). <!-- insert graphs from Ecology and Orca buoys -->. 
+
+In summary, the eDNA communities are more closely associated with ecological variables -- salinity and temperature -- than with tide, or even with geographical origin. This suggests that the two eDNA assemblages may represent different aqueous habitat types, and led us to investigate their taxonomic composition.
 
 <!--#####NOTE: paused editing here; RPK to return to this ASAP.-->
 
-##Environmental Co-variates Assocated with Community Change
-To identify ecological factors that might distinguish the two eDNA assemblages observed, we examined the association of each sample's temperature, salinity, DNA extraction concentration (a proxy for primary productivity), and site identity <!-- could we put the site ID into these models, and show that it performs worse as a predictor of community membership than temp?--> with communities 1 and 2 (Table X). Our model demonstrates that temperature is the best <!--only valid?--> predictor of community membership, and that salinity, DNA extraction concentration, and site identity <!-- true? --> do not make significant contributions.  In summary, the eDNA communities are more closely associated with a single ecological variable, temperature, than with tide, or even with geographical origin. This suggests that the two eDNA assemblages may represent different aqueous habitat types, and led us to investigate their taxonomic composition.
-<!-- Save the following for conclusion - no one knows it's plankton yet: "This, in turn, suggests that communities (particularly planktonic communities) change when the water characteristics change." -->
 
 <!-- include the below inline, not as table.
 ```{r factors_predicting_community, warning=F, error=F} 
@@ -778,8 +779,9 @@ multiplot(LL.plot, PO.plot, TW.plot)
 
 
 
-[Yeah, let's fix this together.]
-<!-- To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2, we first performed principal component analysis on the OTU counts <!--better way to describe this? And is it actually OTU counts or families? for each replicate in our study, and examined the highest loadings on the first and second axes. We found that PCA separates our samples into two communities (Figure X) identical to those discovered by NMDS ordination (Figure 2), and that these groups can be distinguished primarily by the frequency of sequences from X genera <!-- move to family level?-->, including Bathycoccus (green algae) and Micromonas (green algae), Phaeocystis (green algae), Barantolla (polychaete worm with larval phase), Balanus (barnacle with larval phase), Minutocellus (algae), Centropages (copepod), Homo (terrestrial mammal), and Dictyocha (photosynthetic algae) (Table X <!--with read counts for each of these genera/families in each community, as well as common name and life history info so we don't need to put it in the text?-->). Because PCR amplification with universal primers may contribute to bias in relative OTU counts across taxonomic groups, we also performed PCA on the results of site occupancy modelling for each family identified in a replicate of our study. This approach effectively increases the contribution to PCA of families for which small numbers of sequence reads appeared reliably in multiple replicates and samples <!-- am I understanding site occupancy modelling yet?--> With this approach, we see a similar/different result...<!--seems likely we'll get a sim result, as the higher the read counts, the higher the site occupancy probability, on average right?--> (Table Y <!--or continuation of Table X-->). A handful of common green algae and benthic invertebrates (each of which have larval phases) therefore distinguish Communities 1 and 2; however, it remains unclear if these groups differ additionally in their overall abundance of OTUs.
+To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts and filtered for highly discriminating OTUs with high read counts (> 1000 reads). We then 
+
+, including Bathycoccus (green algae) and Micromonas (green algae), Phaeocystis (green algae), Barantolla (polychaete worm with larval phase), Balanus (barnacle with larval phase), Minutocellus (algae), Centropages (copepod), Homo (terrestrial mammal), and Dictyocha (photosynthetic algae) (Table X <!--with read counts for each of these genera/families in each community, as well as common name and life history info so we don't need to put it in the text?-->). Because PCR amplification with universal primers may contribute to bias in relative OTU counts across taxonomic groups, we also performed PCA on the results of site occupancy modelling for each family identified in a replicate of our study. This approach effectively increases the contribution to PCA of families for which small numbers of sequence reads appeared reliably in multiple replicates and samples <!-- am I understanding site occupancy modelling yet?--> With this approach, we see a similar/different result...<!--seems likely we'll get a sim result, as the higher the read counts, the higher the site occupancy probability, on average right?--> (Table Y <!--or continuation of Table X-->). A handful of common green algae and benthic invertebrates (each of which have larval phases) therefore distinguish Communities 1 and 2; however, it remains unclear if these groups differ additionally in their overall abundance of OTUs.
 
 
 <!---
@@ -865,6 +867,7 @@ Rather than tide, ecological variables such as temperature and salinity, each of
 
 Taken together, our results suggest that eDNA samples taken from even highly dynamic environments reflect recent contributions from local species. With the exception of the occasional movement of water masses representing distinct habitats for planktonic organisms, the eDNA communities we sampled at three geographic sites were largely stable over time and tide.  Practically, this suggests that intertidal eDNA research should be performed with substantial attention to ecological variables such as temperature and salinity, which serve as markers of the aqueous habitat present, and may not remain consistent geographically. In contrast, tidal turnover appears to be a secondary consideration that does not dramatically or consistently affect the commmunity sampled, even within a single geographic location. Marine intertidal eDNA surveys therefore appear to reflect the endogenous DNA of the organisms present in the water and on the benthic substrate at the time of sampling.
 
+<!-- Save the following for conclusion - no one knows it's plankton yet: "This, in turn, suggests that communities (particularly planktonic communities) change when the water characteristics change." -->
 
 
 <!--
