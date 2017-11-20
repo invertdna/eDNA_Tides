@@ -451,7 +451,7 @@ TW.OTU.count.adonis<-  adonis(TW~rrMeta$Tide[rrMeta$Site.y=="Twanoh"]+rrMeta$Sam
 To evaluate the spatial and temporal turnover between eDNA communities, we first apportioned the observed variation in COI Bray-Curtis dissimilarities (calculated using OTU read counts) among tides (incoming vs. outgoing), sampling sites, sampling events within a site, biological replicates (individual bottles of water taken during the same sampling event), and technical replicates (PCR replicates from the same bottle of water). Across the whole dataset, ecological communities at different sampling sites (20-50km apart) account for the largest fraction of the variance (`r round(OTU.count.adonis$R2[2],2)`), and different sampling events within those sites account for a similarly high proportion (`r round(OTU.count.adonis$R2[3],2)`). In contrast, biological replicates (N = 3 bottles of water per sampling event, taken ca. 10m apart) account for a small fraction (`r round(OTU.count.adonis$R2[4],2)`) of the variance, with differences among tides accounting for the smallest fraction of the variance in community dissimilarity (`r round(OTU.count.adonis$R2[1],2)`). The remainder -- `r round(OTU.count.adonis$R2[5],2)` -- is largely due to differences among technical PCR replicates (N = 3 per bottle of water), much of which derives from stochasticity in the presence of rare OTUs (Supplemental Figure 1). The comparitively low variance issuing from biological and technical replicates relative to sampling events and sites affords the resolution necessary to further examine questions of community composition across space and time. 
 
 
-```{r ADONIS_TreemapDiagrams, fig.width=3, fig.height=5.04, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:fig2}Results of PERMANOVA, apportioning variance by hierarchical levels of sampling design: Tide (incoming vs. outgoing), Sampling Site, Sampling Event (N = 4 time points per site), and Sampling Bottle (N = 3 bottles per sampling event). Residuals reflect variance among PCR replicates (N = 3 replicates per sampling bottle) as well as variation due to rarefaction stochasticity and other sampling effects. The upper panel reflects results for the dataset as a whole, with lower panels giving site-specific variances. Numbers reflect proportion of the variance explained by the indicated hierarchical level (R$^2$), with p-values in parentheses."}
+```{r ADONIS_TreemapDiagrams, fig.width=3, fig.height=5.04, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:AdonisFigure}Results of PERMANOVA, apportioning variance by hierarchical levels of sampling design: Tide (incoming vs. outgoing), Sampling Site, Sampling Event (N = 4 time points per site), and Sampling Bottle (N = 3 bottles per sampling event). Residuals reflect variance among PCR replicates (N = 3 replicates per sampling bottle) as well as variation due to rarefaction stochasticity and other sampling effects. The upper panel reflects results for the dataset as a whole, with lower panels giving site-specific variances. Numbers reflect proportion of the variance explained by the indicated hierarchical level (R$^2$), with p-values in parentheses."}
 
       q<-as.data.frame(OTU.count.adonis)
         row.names(q)<-c("Tide", "Site", "SamplingEvent", "Bottle", "Residuals", "Total")
@@ -520,11 +520,108 @@ q2.plot<-ggplot(q2, aes(area = R2, label=Level))+
   
 ```
 
-This approach to apportioning variance -- here, in Bray-Curtis dissimilarity -- depends upon the total variance in the dataset being analyzed. Analyzing individual site-level data eliminates the portion of variance due to between-site differences, effectively amplifying the contributions of the remaining hierarchical sampling levels. For each of our three sampling sites, differences among sampling events were greater than differences between tides (Figure 2).
+This approach to apportioning variance -- here, in Bray-Curtis dissimilarity -- depends upon the total variance in the dataset being analyzed. Analyzing individual site-level data eliminates the portion of variance due to between-site differences, effectively amplifying the contributions of the remaining hierarchical sampling levels. For each of our three sampling sites, differences among sampling events were greater than differences between tides (Figure 2). In these analysis, howevever, we have treated tidal direction (incoming vs. outgoing) as the highest hierarchical level of our sampling design, effectively asking whether eDNA assays reflected a coherent "incoming" tidal community and a coherent "outoging" tidal community across all sites. We find little evidence of such communities. 
+
+If instead we think of tidal turnovers, within a site, as a series of events that each might influence community composition, we can measure the buildup of Bray-Curtis dissimilarities over time and tide. Treating our first sampling event at each site as the reference point for that site, each sampling event occurred at a subsequent point in time and after one or more changes in tide. If ecological communities within each site remain consistent over time, we expect the Bray-Curtis values of the community at time zero (the reference community) vs. time one (the subsequent sampling event) to be identical to the dissimilarity values among bottles taken within the same sampling event. 
+
+```{r BrayCurtis_timeSeries, fig.width=3, fig.height=4, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Note the relatively small accumulation of Bray-Curtis dissimilarity across time and tides with the exception of the Twanoh event described elsewhere, which shifts the community significantly. Y-axes identical to facilitate comparison across sites."}
+#bray-curtis timeseries, within sites
+  
+LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
+
+      BClist<-list()
+      for (i in 1:4){
+        BClist[[i]]<-LL[1:4,which(LL.sampling==unique(LL.sampling)[i])]
+      }
+      LL.event1<-lapply(BClist, as.vector)
+      
+      LL.event1<-data.frame(value=unlist(LL.event1),
+                 timestep=c(rep(0, times=length(LL.event1[[1]])),
+                               rep(1, times=length(LL.event1[[2]])),
+                               rep(2, times=length(LL.event1[[3]])),
+                              rep(3, times=length(LL.event1[[4]]))
+                            ),
+                 eventReferenceNumber=rep(1, times=length(unlist(LL.event1)))
+                 )
+      LL.event1<-LL.event1[!is.na(LL.event1$value),]
+
+LL.plot<-ggplot(data= LL.event1, 
+       aes(y=value, x=factor(timestep)))+
+        geom_boxplot(fill="lightblue", alpha=0.5)+
+        ggtitle("Lilliwaup")+
+        #scale_x_discrete(rrMeta$Tide[rrMeta$Site.x=="Lilliwaup"], breaks=c(0,1,2,3), labels=c("Incoming", "Outgoing", "Outgoing", "Incoming"))+
+        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
+
+#TODO -- add secondary x-axis to reflect time-since-reference, and a tertiary axis to reflect tidal direction
+
+################
+#POTLATCH
+
+PO.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Potlatch"]; diag(PO)<-NA
+
+BClist<-list()
+for (i in 1:4){
+  BClist[[i]]<-PO[1:4,which(PO.sampling==unique(PO.sampling)[i])]
+}
+PO.event1<-lapply(BClist, as.vector)
+
+          PO.event1<-data.frame(value=unlist(PO.event1),
+                                timestep=c(rep(0, times=length(PO.event1[[1]])),
+                                           rep(1, times=length(PO.event1[[2]])),
+                                           rep(2, times=length(PO.event1[[3]])),
+                                           rep(3, times=length(PO.event1[[4]]))
+                                ),
+                                eventReferenceNumber=rep(1, times=length(unlist(PO.event1)))
+          )
+          PO.event1<-PO.event1[!is.na(PO.event1$value),]
+
+PO.plot<-ggplot(data= PO.event1, 
+                aes(y=value, x=factor(timestep)))+
+  geom_boxplot(fill="lightblue", alpha=0.5)+
+  ggtitle("Potlatch")+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
+
+##########
+###TWANOH
+TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]
+diag(TW)<-NA
+TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]; diag(TW)<-NA
+
+BClist<-list()
+for (i in 1:4){
+  BClist[[i]]<-TW[1:4,which(TW.sampling==unique(TW.sampling)[i])]
+}
+TW.event1<-lapply(BClist, as.vector)
+
+        TW.event1<-data.frame(value=unlist(TW.event1),
+                              timestep=c(rep(0, times=length(TW.event1[[1]])),
+                                         rep(1, times=length(TW.event1[[2]])),
+                                         rep(2, times=length(TW.event1[[3]])),
+                                         rep(3, times=length(TW.event1[[4]]))
+                              ),
+                              eventReferenceNumber=rep(1, times=length(unlist(TW.event1)))
+        )
+        TW.event1<-TW.event1[!is.na(TW.event1$value),]
+
+TW.plot<-ggplot(data= TW.event1, 
+                aes(y=value, x=factor(timestep)))+
+  geom_boxplot(fill="lightblue", alpha=0.5)+
+  ggtitle("Twanoh")+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
 
 
 
+#####Multiplot
+#pdf("/Users/rpk/GoogleDrive/Kelly_Lab/Projects/TideEffectHoodCanal_Gallego/Analysis/figures/TimeSeries_BC.pdf")
+multiplot(LL.plot, PO.plot, TW.plot)
+#dev.off()
+#TODO -- stats
 
+
+
+```
+
+We assessed each sampling site in this way (Figure 3), showing little change in community dissimilarity as a function of tidal change (or indeed of time). In all three sites, Bray-Curtis values remain stable across multiple tide changes, with no continuously increasing trend over time. Instead, two events stand out as statistically significant (Kruskal-Wallis, p < 0.01): a moderate increase at Lilliwaup at time step 3 (ca. 26 hours after the reference sample, from median `r round(median(LL.event1[LL.event1[,2]==1,1]), 2)` to `r round(median(LL.event1[LL.event1[,2]==1,3]), 2)`), and a far larger jump in a single time point at Twanoh (ca. 19 hours after reference; from `r round(median(TW.event1[TW.event1[,2]==1,1]), 2)` to `r round(median(TW.event1[TW.event1[,2]==2,1]), 2)`, before returning to its reference value in the subsequent sampling event). Neither tidal direction (incoming vs. outgoing) nor individual tidal events therefore consistently drive differences in sampled eDNA communities, but as described below, individual changes in such as those seen in the Twanoh changeover event, bear further scrutiny. 
 
 #How Many Ecological Communities Are Present?
 
@@ -569,7 +666,8 @@ fig3a<-      ggplot() +
             plot.background = element_blank(), 
             legend.position = "right",
             plot.title = element_text(hjust = 0.5),
-            plot.margin = margin(0,0,20,0, unit="pt")
+            plot.margin = margin(0,0,20,0, unit="pt"),
+            aspect.ratio = 1
             ) +
       ggtitle("Bray-Curtis Dissimilarity\nby Sampling Bottle and by Tide")
 
@@ -585,7 +683,9 @@ fig3a<-      ggplot() +
           theme(axis.text.x = element_text(angle=90, size=4),
             axis.text.y = element_text(size=4),
             panel.background = element_blank(),
-            plot.background = element_blank())
+            plot.background = element_blank(),
+            aspect.ratio = 1
+            )
   
   #heatmap(distmat, symm=T, labRow = Sites, labCol=Sites) #labRow=rrMeta$run, labCol=rrMeta$run
 
@@ -627,7 +727,7 @@ In summary, the eDNA communities are more closely associated with ecological var
 
 #Which organisms make up communities 1 and 2?
 
-```{r multiplot_community_membership, fig.width=6, fig.height=7.2, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), DNA concentration recovered (ng/mL), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset."}
+```{r multiplot_community_membership, fig.width=5, fig.height=6.5, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), DNA concentration recovered (ng/mL), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset."}
   #################
     NOAA2<-
       NOAA%>%
@@ -714,7 +814,9 @@ ggplot(InfluentialOTUsMelted[grepl("TW", InfluentialOTUsMelted$Var2),], aes(x=Va
         panel.background = element_blank(),
         plot.title = element_text(hjust = 0.5, margin = margin(t = 10, b = 15), size=10),
         legend.position="bottom",
-        axis.text.x = element_text(angle = 90, hjust = 1, size=6))
+        axis.text.x = element_text(angle = 90, hjust = 1, size=6),
+        aspect.ratio = 1
+        )
 
 ```
 
@@ -837,104 +939,6 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 ```
 
 
-
-```{r BrayCurtis_timeSeries, fig.width=3, fig.height=4, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:SupplFigTimeSeries}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Note the relatively small accumulation of Bray-Curtis dissimilarity across time and tides with the exception of the Twanoh event described elsewhere, which shifts the community significantly. Y-axes identical to facilitate comparison across sites."}
-#bray-curtis timeseries, within sites
-  
-LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
-
-      BClist<-list()
-      for (i in 1:4){
-        BClist[[i]]<-LL[1:4,which(LL.sampling==unique(LL.sampling)[i])]
-      }
-      LL.event1<-lapply(BClist, as.vector)
-      
-      LL.event1<-data.frame(value=unlist(LL.event1),
-                 timestep=c(rep(0, times=length(LL.event1[[1]])),
-                               rep(1, times=length(LL.event1[[2]])),
-                               rep(2, times=length(LL.event1[[3]])),
-                              rep(3, times=length(LL.event1[[4]]))
-                            ),
-                 eventReferenceNumber=rep(1, times=length(unlist(LL.event1)))
-                 )
-      LL.event1<-LL.event1[!is.na(LL.event1$value),]
-
-LL.plot<-ggplot(data= LL.event1, 
-       aes(y=value, x=factor(timestep)))+
-        geom_boxplot(fill="lightblue", alpha=0.5)+
-        ggtitle("Lilliwaup")+
-        #scale_x_discrete(rrMeta$Tide[rrMeta$Site.x=="Lilliwaup"], breaks=c(0,1,2,3), labels=c("Incoming", "Outgoing", "Outgoing", "Incoming"))+
-        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
-
-#TODO -- add secondary x-axis to reflect time-since-reference, and a tertiary axis to reflect tidal direction
-
-################
-#POTLATCH
-
-PO.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Potlatch"]; diag(PO)<-NA
-
-BClist<-list()
-for (i in 1:4){
-  BClist[[i]]<-PO[1:4,which(PO.sampling==unique(PO.sampling)[i])]
-}
-PO.event1<-lapply(BClist, as.vector)
-
-          PO.event1<-data.frame(value=unlist(PO.event1),
-                                timestep=c(rep(0, times=length(PO.event1[[1]])),
-                                           rep(1, times=length(PO.event1[[2]])),
-                                           rep(2, times=length(PO.event1[[3]])),
-                                           rep(3, times=length(PO.event1[[4]]))
-                                ),
-                                eventReferenceNumber=rep(1, times=length(unlist(PO.event1)))
-          )
-          PO.event1<-PO.event1[!is.na(PO.event1$value),]
-
-PO.plot<-ggplot(data= PO.event1, 
-                aes(y=value, x=factor(timestep)))+
-  geom_boxplot(fill="lightblue", alpha=0.5)+
-  ggtitle("Potlatch")+
-  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
-
-##########
-###TWANOH
-TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]
-diag(TW)<-NA
-TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]; diag(TW)<-NA
-
-BClist<-list()
-for (i in 1:4){
-  BClist[[i]]<-TW[1:4,which(TW.sampling==unique(TW.sampling)[i])]
-}
-TW.event1<-lapply(BClist, as.vector)
-
-        TW.event1<-data.frame(value=unlist(TW.event1),
-                              timestep=c(rep(0, times=length(TW.event1[[1]])),
-                                         rep(1, times=length(TW.event1[[2]])),
-                                         rep(2, times=length(TW.event1[[3]])),
-                                         rep(3, times=length(TW.event1[[4]]))
-                              ),
-                              eventReferenceNumber=rep(1, times=length(unlist(TW.event1)))
-        )
-        TW.event1<-TW.event1[!is.na(TW.event1$value),]
-
-TW.plot<-ggplot(data= TW.event1, 
-                aes(y=value, x=factor(timestep)))+
-  geom_boxplot(fill="lightblue", alpha=0.5)+
-  ggtitle("Twanoh")+
-  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
-
-
-
-#####Multiplot
-#pdf("/Users/rpk/GoogleDrive/Kelly_Lab/Projects/TideEffectHoodCanal_Gallego/Analysis/figures/TimeSeries_BC.pdf")
-multiplot(LL.plot, PO.plot, TW.plot)
-#dev.off()
-#TODO -- stats
-
-
-
-```
-
 ```{r ContextualWaterData_WAEcology, fig.cap="\\label{fig:SupplementalWaterChem}Contextual water data for the month of March from the Washington State Department of Ecology (https://fortress.wa.gov/ecy/eap/marinewq/mwdataset.asp). Plots are arranged north to south, with the southernmost point being Lynch Cove, near our sampled site of Twanoh. Red points indicate Temperature/Salinity data in the range of those in which we observed eDNA Community 2; these are far more common in the southern end of Hood Canal than in the north, which has a stronger oceanic influence."}
 
 Hamma<-read.csv("ECY_waterData/HCB003_0_provisional.csv")
@@ -970,7 +974,8 @@ ggplot(alldata, aes(x=sal, y=temp, color=sal<20&temp<9))+
 	scale_color_manual(name = "Salinity < 20 \n& Temperature < 9", values = setNames(c("red", "black"), c(T,F)))+
 	geom_vline(xintercept=20, linetype=2)+
 	geom_hline(yintercept=9, linetype=2)+
-  xlab("Salinity (psu)")+ylab("Temperature (C)")
+  xlab("Salinity (psu)")+ylab("Temperature (C)")+
+  theme(aspect.ratio = 2)
   
 
 ECYlatlong<-
