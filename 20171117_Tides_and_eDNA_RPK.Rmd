@@ -530,7 +530,7 @@ To examine the effect of tide at each of our three geographic locations independ
 
 We next tested the possibility that eDNA sequences might still regularly shift in association with tide, even if not between two predicable assemblages (see above). Conceiving of tidal turnovers within a site as a series of events that could each influence community composition, we treated our first sampling event at a site as the reference point for that site, and assessed the Bray-Curtis dissimilarity of eDNA sequences with each subsequent sampling event occurring at a later point in time and after one or more changes in tide (Figure 3), <!--If ecological communities within each site remain consistent over time, we expect the Bray-Curtis values of the community at time zero (the reference community) vs. time one (the subsequent sampling event) to be identical to the dissimilarity values among bottles taken within the same sampling event. --> We observe little change in community dissimilarity as a function of tidal change (or indeed of time). In all three sites, Bray-Curtis values remain stable across multiple tide changes, with no continuously increasing trend over time. Instead, two events stand out as statistically significant (Kruskal-Wallis, p < 0.01): a moderate increase at Lilliwaup at time step 3 (ca. 26 hours after the reference sample, from median `r round(median(LL.event1[LL.event1[,2]==1,1]), 2)` to `r round(median(LL.event1[LL.event1[,2]==1,3]), 2)`), and a far larger jump in a single time point at Twanoh (ca. 19 hours after reference; from `r round(median(TW.event1[TW.event1[,2]==1,1]), 2)` to `r round(median(TW.event1[TW.event1[,2]==2,1]), 2)`, before returning to its reference value in the subsequent sampling event). Neither tidal direction (incoming vs. outgoing) nor individual tidal events therefore consistently drive differences in sampled eDNA communities, but as described below, individual changes in such as those seen in the Twanoh changeover event bear further scrutiny. 
 
-```{r BrayCurtis_timeSeries, fig.width=3, fig.height=4, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Note the relatively small accumulation of Bray-Curtis dissimilarity across time and tides with the exception of the Twanoh event described elsewhere, which shifts the community significantly. Y-axes identical to facilitate comparison across sites."}
+```{r BrayCurtis_timeSeries, fig.width=3, fig.height=4, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Steps with significant departures (Kruskal; p < 0.01) marked with asterisks and discussed in the text. Y-axes identical to facilitate comparison across sites."}
 #bray-curtis timeseries, within sites
   
 LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
@@ -553,10 +553,12 @@ LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
 
 LL.plot<-ggplot(data= LL.event1, 
        aes(y=value, x=factor(timestep)))+
-        geom_boxplot(fill="lightblue", alpha=0.5)+
+        geom_boxplot(fill="dodgerblue2", alpha=0.5)+
         ggtitle("Lilliwaup")+
         #scale_x_discrete(rrMeta$Tide[rrMeta$Site.x=="Lilliwaup"], breaks=c(0,1,2,3), labels=c("Incoming", "Outgoing", "Outgoing", "Incoming"))+
-        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
+        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()+
+        annotate('text', x=4, y = 0.6, label="*", size=14)
+        
 
 #TODO -- add secondary x-axis to reflect time-since-reference, and a tertiary axis to reflect tidal direction
 
@@ -583,7 +585,7 @@ PO.event1<-lapply(BClist, as.vector)
 
 PO.plot<-ggplot(data= PO.event1, 
                 aes(y=value, x=factor(timestep)))+
-  geom_boxplot(fill="lightblue", alpha=0.5)+
+  geom_boxplot(fill="dodgerblue2", alpha=0.5)+
   ggtitle("Potlatch")+
   xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
 
@@ -611,9 +613,10 @@ TW.event1<-lapply(BClist, as.vector)
 
 TW.plot<-ggplot(data= TW.event1, 
                 aes(y=value, x=factor(timestep)))+
-  geom_boxplot(fill="lightblue", alpha=0.5)+
+  geom_boxplot(fill="dodgerblue2", alpha=0.5)+
   ggtitle("Twanoh")+
-  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.8)+theme_bw()+
+  annotate('text', x=3, y = 0.8, label="*", size=14)
 
 
 
@@ -716,7 +719,6 @@ To determine the number of distinct ecological communities present all samples f
 
 To further investigate the relationship of each eDNA community with tide, we first assigned membership of each sample to one of the two communities based on a visual examination of our ordination analysis (Figure 3a; polygon color) and plotted community membership of each sample across the tidal cycle during collection (Figure 4). Both qualitatively indicate a lack of association between tidal direction or height and either of the two eDNA communities. Quantitatively, by sampling event, it is clear that community is independent of tidal height (p = `r round(summary(lm(Pred~Community, data=NOAA))$coeff[8], 3)`; linear regression) and of tidal direction (incoming vs. outgoing; p = `r round(chisq.test(x=rrMeta$Tide, y=rrMeta$Community)$p.value, 3)`; $\chi^2$), but is related imperfectly to site identity (p = `r fisher.test(rrMeta$Site.x, rrMeta$Community)$p.value`; Fisher's exact test). The single Twanoh sample belonging to eDNA Community 1 suggests that geography does not fully explain differences between these communities, and that ecological variables warrant further investigation as driving differences in communities.
 
-[insert ref to supplemental figure, time-series.]
 
 ```{r glm_covariates}
 glm.model<-glm(Community~Temperature+Salinity_refractometer, data=rrMeta, family="binomial")
