@@ -40,9 +40,9 @@ knitr::knit_hooks$set(inline = function(x) {
 ```{r loadLibraries_etc, echo=F, error=F, message=FALSE, warning=F, include=FALSE}
 ##########LOAD LIBRARIES and FUNCTIONS#############
 #How to check if you have all needed packages installed, introducing: uptodate.R
-source("uptodate.R")
+#source("uptodate.R")
 libs=c("vegan","plotrix","MASS","data.table", "gdata","lattice","plyr", "gridExtra", "readxl", "Biostrings", "ggmap", "xtable", "pander","RColorBrewer", "ggfittext", "treemapify", "kableExtra", "knitr", "tidyverse", "RCurl")
-uptodate(libs)
+#uptodate(libs)
 lapply(libs, require, character.only = TRUE)
 
 multiplot.script<-getURL("https://raw.githubusercontent.com/larmarange/JLutils/master/R/multiplot.R", ssl.verifypeer = FALSE); eval(parse(text = multiplot.script))  #ggplot multiplot function from github
@@ -773,7 +773,7 @@ In summary, the eDNA communities are more closely associated with ecological var
 
 ##Taxa Associated with Distinct Communities
 
-```{r multiplot_community_membership, fig.width=5, fig.height=6.5, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), DNA concentration recovered (ng/mL), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset."}
+```{r multiplot_community_membership, fig.width=5, fig.height=6, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), DNA concentration recovered (ng/mL), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset."}
   #################
     NOAA2<-
       NOAA%>%
@@ -811,20 +811,14 @@ z<-FamilyCountsSums
 s5<-ggplot(z, aes(y=value, x=variable, fill=Family))+
     geom_bar(stat='identity')+theme_minimal()+scale_fill_brewer(palette="Spectral")+
     theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")+theme(axis.title=element_text(size=8))+
-    guides(fill=guide_legend(ncol=5, size=6))+xlab("Sample")+ylab("Proportion Reads, Top 10 Families")+theme(plot.margin = unit(c(0,3,0,0), "pt"))
+    guides(fill=guide_legend(ncol=5), size=2)+xlab("Sample")+ylab("Proportion Reads, Top 10 Families")+theme(plot.margin = unit(c(0,3,0,0), "pt"))
 
 multiplot(s1,s2,s3,s4,s5, layout=matrix(c(1,2,3,4,5,5,5), nrow=7, ncol=1))     
 
 ```
 
 
-To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts -- constrained by community identity as determined by the distance analysies above -- and filtered for highly discriminating OTUs with high read counts (> 1000 reads). The result was 
-
-To examine the turnover between ecological communities that occured in the span of X hours at a single site (despite previous directional shifts in tide at this location not resulting in a community change-over) changing communities), we focused further on the community composition of the two samples taken at Twanoh on March 12 at 11:00 (Community 1) and 13:00 (Community 2)...  
-
-
-[, including Bathycoccus (green algae) and Micromonas (green algae), Phaeocystis (green algae), Barantolla (polychaete worm with larval phase), Balanus (barnacle with larval phase), Minutocellus (algae), Centropages (copepod), Homo (terrestrial mammal), and Dictyocha (photosynthetic algae) ]
-
+To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts -- constrained by community identity as determined by the distance analysies above -- and filtered for highly discriminating OTUs with high read counts (> 1000 reads). The result was seven Families (Fig 7), two of which are animals -- Balanidae (barnacles; sessile as adults) and Acartiidae (copepods; planktonic) -- and the others of which are autotrophic groups consisting of dinoflagellates (Oxytoxaceae), chlorophytes (Mamiellaceae, Bathycoccaceae), a sessile brown alga (Scytosiphonaceae), and a [another heterokont, Triparmaceae].
 
 A handful of common green algae and benthic invertebrates (each of which have larval phases) therefore distinguish the two communities we identify with COI. However, given the well-known effects of primer bias -- by which the apparent abundance of some taxa can be grossly distorted by equating read count to organismal abundance -- we stress that here we are using a single primer set as an index of community similarity, rather than as an accurate reflection of the abundances of taxa present in the water.
 
