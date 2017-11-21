@@ -616,12 +616,55 @@ TW.plot<-ggplot(data= TW.event1,
 multiplot(LL.plot, PO.plot, TW.plot)
 #dev.off()
 #TODO -- stats
+```
 
+```{r regressions_salinity_time}
+
+    LLdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("LL", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+    LLsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("LL", rrMeta$original_sample)]))
+    LLtimemat<-c(dist(rrMeta$DateTime[grepl("LL", rrMeta$original_sample)]))
+
+LLmeans<-
+  data.frame(LLdistmat[lower.tri(LLdistmat)], LLsaldist, LLtimemat)%>%
+  group_by(LLsaldist, LLtimemat)%>%
+  summarize(mean(LLdistmat.lower.tri.LLdistmat..))%>%
+  as.data.frame()
+
+    LL.lm<-lm(LLmeans[,3]~LLmeans[,1]+LLmeans[,2])  #salinity is important; time is not
+
+#note: I'd love to have the sample size to ask whether time/tide or salinity were more influential, but there's not much to work w (only a few data points)
+
+    POdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("PO", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+    POsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("PO", rrMeta$original_sample)]))
+    POtimemat<-c(dist(rrMeta$DateTime[grepl("PO", rrMeta$original_sample)]))
+    
+    POmeans<-
+      data.frame(POdistmat[lower.tri(POdistmat)], POsaldist, POtimemat)%>%
+      group_by(POsaldist, POtimemat)%>%
+      summarize(mean(POdistmat.lower.tri.POdistmat..))%>%
+      as.data.frame()
+
+    PO.lm<-lm(POmeans[,3]~POmeans[,1]+POmeans[,2])
+    
+      TWdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("TW", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+      TWsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("TW", rrMeta$original_sample)]))
+      TWtimemat<-c(dist(rrMeta$DateTime[grepl("TW", rrMeta$original_sample)]))
+      
+      TWmeans<-
+        data.frame(TWdistmat[lower.tri(TWdistmat)], TWsaldist, TWtimemat)%>%
+        group_by(TWsaldist, TWtimemat)%>%
+        summarize(mean(TWdistmat.lower.tri.TWdistmat..))%>%
+        as.data.frame()
+
+      TW.lm<-lm(TWmeans[,3]~TWmeans[,1]+TWmeans[,2])  #salinity is important; time is not
 
 
 ```
 
-We assessed each sampling site in this way (Figure 3), showing little change in community dissimilarity as a function of tidal change (or indeed of time). In all three sites, Bray-Curtis values remain stable across multiple tide changes, with no continuously increasing trend over time. Instead, two events stand out as statistically significant (Kruskal-Wallis, p < 0.01): a moderate increase at Lilliwaup at time step 3 (ca. 26 hours after the reference sample, from median `r round(median(LL.event1[LL.event1[,2]==1,1]), 2)` to `r round(median(LL.event1[LL.event1[,2]==1,3]), 2)`), and a far larger jump in a single time point at Twanoh (ca. 19 hours after reference; from `r round(median(TW.event1[TW.event1[,2]==1,1]), 2)` to `r round(median(TW.event1[TW.event1[,2]==2,1]), 2)`, before returning to its reference value in the subsequent sampling event). Neither tidal direction (incoming vs. outgoing) nor individual tidal events therefore consistently drive differences in sampled eDNA communities, but as described below, individual changes in such as those seen in the Twanoh changeover event, bear further scrutiny. 
+
+We assessed each sampling site in this way (Figure 3), showing little change in community dissimilarity as a function of tidal change (or indeed of time). In all three sites, Bray-Curtis values remain stable across multiple tide changes, with no continuously increasing trend over time. Instead, two events stand out as statistically significant (Kruskal-Wallis, p < 0.01): a moderate increase at Lilliwaup at time step 3 (ca. 26 hours after the reference sample, from median `r round(median(LL.event1[LL.event1[,2]==1,1]), 2)` to `r round(median(LL.event1[LL.event1[,2]==1,3]), 2)`), and a far larger jump in a single time point at Twanoh (ca. 19 hours after reference; from `r round(median(TW.event1[TW.event1[,2]==1,1]), 2)` to `r round(median(TW.event1[TW.event1[,2]==2,1]), 2)`, before returning to its reference value in the subsequent sampling event). In each of these events, a change in salinity of the sampled water is significantly associated with the change in ecological community, while time-since-reference (a variable that necessarily encompasses tidal changes in our sampling scheme) is not (linear models; Lilliwaup t-value Salinity = `r summary(LL.lm)$coeff[8]` and Time-since-reference = `r summary(LL.lm)$coeff[9]`; Twanoh t-value Salinity = `r summary(TW.lm)$coeff[8]` and Time-since-reference = `r summary(TW.lm)$coeff[9]`).
+
+In sum, neither tidal direction (incoming vs. outgoing) nor individual tidal events therefore consistently drive differences in sampled eDNA communities, but as described below, individual environmental changes in such as those seen in the Twanoh changeover event, bear further scrutiny. 
 
 #How Many Ecological Communities Are Present?
 
