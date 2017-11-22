@@ -25,7 +25,8 @@ knitr::opts_chunk$set(
   message = FALSE,
   echo = FALSE,
   fig.align="center",
-  dpi=75,
+  dev = 'pdf',
+  dpi=300,
   fig.pos = '!ht'
   )
 options("max.print"=10000)
@@ -301,11 +302,11 @@ Organisms of all kinds leave genetic traces in their environments, and in recent
 
 #Introduction
 
-As environmental DNA (eDNA) becomes an increasingly important tool in ecological research [@sigsgaard2016population,@deiner2017environmental], it is critical to understand how techniques for eDNA collection and analysis perform under real-world conditions [@MEC:MEC13481]. In particular, we must characterize the spatial and temporal resolution of amplicon-sequencing studies in order to confidently identify ecological patterns in the field [@o2017spatial]; like any sampling technique, eDNA can reveal a phenomenon only where the effects of that phenomenon are sufficiently large enough to be detected above background variation (e.g., among replicates or time points).
+As environmental DNA (eDNA) becomes an increasingly important tool in ecological research [@sigsgaard2016population;@deiner2017environmental], it is critical to understand how techniques for eDNA collection and analysis perform under real-world conditions [@MEC:MEC13481]. In particular, we must characterize the spatial and temporal resolution of amplicon-sequencing studies in order to confidently identify ecological patterns in the field [@o2017spatial]; like any sampling technique, eDNA can reveal a phenomenon only where the effects of that phenomenon are sufficiently large enough to be detected above background variation (e.g., among replicates or time points).
 
-Most efforts to quantify the behavior of eDNA in the field have taken the form of quantitative PCR (qPCR) studies, in which the concentration of a particular template DNA -- either from a target species or a synthesized sequence not otherwise occurring in nature -- is measured over space or time. Notable recent examples include documenting degradation of DNA over tens of meters in the flow of artificial streams [@jerde2016influence], caging trout and measuring eDNA concentration at intervals downstream [@jane2015distance], estimating eDNA production and degradation over time in a static environment [@sassoubre2016quantification], and estimating production and decay rates of eDNA from both caged and wild char in a field setting [@wilcox2016understanding], among others [e.g., @deiner_transport_2014-1; @thomsen_detection_2012]. Although the precise findings vary by setting and details of the molecular assay employed, even with highly sensitive qPCR, the distance from its source that eDNA can reliably be detected appears to be small, on the order of 10 -- 1000m.
+Most efforts to quantify the behavior of eDNA in the field have taken the form of quantitative PCR (qPCR) studies, in which the concentration of a particular template DNA -- either from a target species or a synthesized sequence not otherwise occurring in nature -- is measured over space or time. Notable recent examples include documenting degradation of DNA over tens of meters in the flow of artificial streams [@jerde2016influence], caging trout and measuring eDNA concentration at intervals downstream [@jane2015distance], estimating eDNA production and degradation over time in a static environment [@sassoubre2016quantification], and estimating production and decay rates of eDNA from both caged and wild char in a field setting [@wilcox2016understanding], among others [e.g., @thomsen_detection_2012; @deiner_transport_2014-1]. Although the precise findings vary by setting and details of the molecular assay employed, even with highly sensitive qPCR, the distance from its source that eDNA can reliably be detected appears to be small, on the order of 10 -- 1000m.
 
-By contrast, less work has focused on the behavior of eDNA as reflected in ecological amplicon-sequencing studies. Port and colleagues show that vertebrate eDNA communities can be distinguished at intervals of 60m [@port2016assessing] in nearshore marine waters, and [@o2017spatial] suggests that a similar spatial scale (< 75m) pertains to a broader metazoan dataset. These were each single-time-point snapshots of animal species in dynamic environments, however, and especially in marine and aquatic environments in which spatial and temporal scales are linked by bulk transport of water, fine spatial resolution could be obliterated by water movement.
+By contrast, less work has focused on the behavior of eDNA as reflected in ecological amplicon-sequencing studies. Port and colleagues show that vertebrate eDNA communities can be distinguished at intervals of 60m [@MEC:MEC13481] in nearshore marine waters, and [@o2017spatial] suggests that a similar spatial scale (< 75m) pertains to a broader metazoan dataset. These were each single-time-point snapshots of animal species in dynamic environments, however, and especially in marine and aquatic environments in which spatial and temporal scales are linked by bulk transport of water, fine spatial resolution could be obliterated by water movement.
 
 Nearshore marine habitats are among the most physically dynamic and biologically diverse on earth [@helmuth2006living]. The movement of water associated with tide is a fundamental property of these environments [@Babson2006], dramatically shaping the life histories and ecology of organisms that live there. Environmental DNA surveys hold particular promise for better understanding thousands of species that may co-occur at a single nearshore marine location. However, use of this technique in the intertidal zone requires a practical knowledge of the effects of tide on the presence of eDNA sequences. Moreover, the intertidal environment provides rigorous testing grounds in which to discern the origins of genetic material detected in eDNA surveys, more generally. 
 
@@ -317,7 +318,7 @@ In a spatially- and temporarily-replicated study, we find that nearshore COI eDN
 
 ##Field Sampling
 
-```{r FIG1_sitemap, fig.width=3, fig.height=3, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:fig1}Nearshore sampling locations in Hood Canal, Washington, USA."}
+```{r FIG1_sitemap, fig.width=3, fig.height=3, fig.path='figures/', echo=F, fig.cap="\\label{fig:fig1}Nearshore sampling locations in Hood Canal, Washington, USA."}
 
 lats<-c(47.462,47.377,47.378)
 longs<-c(-123.113,-123.150,-122.973)
@@ -366,9 +367,9 @@ Following library preparation according to manufacturers’ protocols (KAPA Bios
 
 ##Bioinformatics
 
-We processed the resulting sequence reads with a custom Unix-based script [@banzai], which calls third-party programs [@mahe2015swarm,  @martin2011cutadapt, @zhang2014pear] to move from raw sequence data to a quality-controlled dataset of counts of sequences from operational taxonomic units (OTUs). A total of `r READcount1` reads survived preliminary quality-control in the bioinformatics pipeline, representing `r OTUcount1` OTUs, most of which were rare (< 5 reads). We controlled for contamination in three ways, following our approach in [@kelly2017multilocus]. First, to address the question of whether rare OTUs are a function of low-level contamination or are true reflections of less-common amplicons, we used a site-occupancy model to estimate the probability of OTU occurrence [@royle2006generalized, @lahoz2015statistical], using multiple PCR replicates of each environmental sample as independent draws from a common binomial distribution. We eliminated from the dataset any OTU with <80% estimated probability of occurrence, yielding a dataset of `r READcount2` reads (`r OTUcount2` OTUs). We retained the occupancy-probability data for each OTU for later use as an alternative to simple presence-absence treatment of the final dataset (see below). Second, we estimated (and then minimized) the effect of potential cross-contamination among samples -- likely due to tag-jumping [@schnell2015tag] or similar effects -- as follows: (1) we calculated the maximum proportional representation of each OTU across all control (here, ostrich) samples, considering these to be estimates of the proportional contribution of contamination to each OTU recovered from the field samples. (2) We then subtracted this proportion from the respective OTU in the field samples, yielding `r READcount3` reads (`r OTUcount3` OTUs). Finally, we dropped samples that had highly dissimilar PCR replicates (Bray-Curtis dissimilarities > `r round(minOutlier,2)`, which were outside of the 95% confidence interval given the best-fit model of the observed among-replicate dissimilarities). The result was a dataset of `r READcount4` reads (`r OTUcount4` OTUs), or `r (READcount4/READcount1)*100`% of the post-pipeline reads.
+We processed the resulting sequence reads with a custom Unix-based script [@banzai], which calls third-party programs [@mahe2015swarm;@martin2011cutadapt;@zhang2014pear] to move from raw sequence data to a quality-controlled dataset of counts of sequences from operational taxonomic units (OTUs). A total of `r READcount1` reads survived preliminary quality-control in the bioinformatics pipeline, representing `r OTUcount1` OTUs, most of which were rare (< 5 reads). We controlled for contamination in three ways, following our approach in [@kelly2017multilocus]. First, to address the question of whether rare OTUs are a function of low-level contamination or are true reflections of less-common amplicons, we used a site-occupancy model to estimate the probability of OTU occurrence [@royle2006generalized;@lahoz2015statistical], using multiple PCR replicates of each environmental sample as independent draws from a common binomial distribution. We eliminated from the dataset any OTU with <80% estimated probability of occurrence, yielding a dataset of `r READcount2` reads (`r OTUcount2` OTUs). We retained the occupancy-probability data for each OTU for later use as an alternative to simple presence-absence treatment of the final dataset (see below). Second, we estimated (and then minimized) the effect of potential cross-contamination among samples -- likely due to tag-jumping [@schnell2015tag] or similar effects -- as follows: (1) we calculated the maximum proportional representation of each OTU across all control (here, ostrich) samples, considering these to be estimates of the proportional contribution of contamination to each OTU recovered from the field samples. (2) We then subtracted this proportion from the respective OTU in the field samples, yielding `r READcount3` reads (`r OTUcount3` OTUs). Finally, we dropped samples that had highly dissimilar PCR replicates (Bray-Curtis dissimilarities > `r round(minOutlier,2)`, which were outside of the 95% confidence interval given the best-fit model of the observed among-replicate dissimilarities). The result was a dataset of `r READcount4` reads (`r OTUcount4` OTUs), or `r (READcount4/READcount1)*100`% of the post-pipeline reads.
 
-We rarefied read counts from each PCR replicate to allow for comparison across water samples using the vegan package for R [@vegan]. We carried out subsequent analyses on a single, illustrative rarefaction draw; these did not vary substantially among the rarefaction replicates (Supplemental Figure 1). All bioinformatics and other analytical code is included as part of this manuscript, for transparency and reproducibility.
+We rarefied read counts from each PCR replicate to allow for comparison across water samples using the vegan package for R [@vegan]. We carried out subsequent analyses on a single, illustrative rarefaction draw; these did not vary substantially among the rarefaction replicates (Supplemental Figure 1). All bioinformatics and other analytical code is included as part of this manuscript, including OTU tables and full annotation data. In addition, sequence data are deposited and publicly available in GenBank (Upon Acceptance).
 
 
 ##Statistical Analysis
@@ -377,7 +378,7 @@ We calculated the variance in OTU communities at five hierarchical levels -- bet
 
 ###How Many Ecological Communities Are Present?
 
-We then used Bray-Curtis dissimilarity to visualize differences among sampled communities at each hierarchical level of organization, using ordination (NMDS; R packages MASS [@MASS]), treemaps [@treemapify, @ggplot], and a heatmap. Given the strong and consistent differentiation we identified between two ecological communities in the eDNA data (see Results), we then labeled these communities 1 and 2, and applied a set of standard statistics to test for associations between community identity and geographic site (Fisher's exact test), tidal direction (incoming vs. outgoing; \(\chi^2\)), and tidal height (logistic regression).
+We then used Bray-Curtis dissimilarity to visualize differences among sampled communities at each hierarchical level of organization, using ordination  [NMDS, @MASS], treemaps [@treemapify; @ggplot], and a heatmap. Given the strong and consistent differentiation we identified between two ecological communities in the eDNA data (see Results), we then labeled these communities 1 and 2, and applied a set of standard statistics to test for associations between community identity and geographic site (Fisher's exact test), tidal direction (incoming vs. outgoing; \(\chi^2\)), and tidal height (logistic regression).
 
 ###Community Identity by Site and Tide
 
@@ -389,7 +390,7 @@ We stress that a single genetic locus provides only a biased and incomplete view
 
 We assigned a taxonomic name to each OTU sequence using blastn [@camacho2009blast] on a local version of the full NCBI nucleotide database (current as of August 2017), recovering up to 100 hits per query sequence and reconciling conflicts among equally good matches using the last common ancestor approach implemented in MEGAN 6.4 [@huson2016megan]. `r 100*(sum(!is.na(rrTax$OTU_taxon_MEGAN))/nrow(rrOTUs))`% of OTUs could be annotated at some taxonomic level, with over half (`r 100*(sum(!is.na(rrTax$OTU_taxon_family))/nrow(rrOTUs))`%) being annotated to the level of taxonomic Family or lower.
 
-We report an index of community-wide changes across sampling events using the top 10 most-common taxonomic Families in the dataset. We carried out a finer-grained analysis to identify the OTUs driving the observed community shifts at Twanoh by first using a cannonical correspondence analysis (CCA; [@vegan]), constrained by community identity (1 vs. 2, identified via NMDS; see Results), then filtering the CCA scores by read count, such that we plotted only OTUs that strongly differentiated communities and occurred at least 1000 times in the dataset. We then show these by family-level taxonomic annotation, for intelligibility.
+We report an index of community-wide changes across sampling events using the top 10 most-common taxonomic Families in the dataset. We carried out a finer-grained analysis to identify the OTUs driving the observed community shifts at Twanoh by first using a cannonical correspondence analysis [CCA; @vegan], constrained by community identity (1 vs. 2, identified via NMDS; see Results), then filtering the CCA scores by read count, such that we plotted only OTUs that strongly differentiated communities and occurred at least 1000 times in the dataset. We then show these by family-level taxonomic annotation, for intelligibility.
 
 #Results  
 
@@ -457,7 +458,7 @@ TW.OTU.count.adonis<-  adonis(TW~rrMeta$Tide[rrMeta$Site.y=="Twanoh"]+rrMeta$Sam
 To evaluate the spatial and temporal turnover between eDNA communities, we first apportioned the observed variation in COI Bray-Curtis dissimilarities (calculated using OTU read counts) among tides (incoming vs. outgoing), sampling sites, sampling events within a site, biological replicates (individual bottles of water taken during the same sampling event), and technical replicates (PCR replicates from the same bottle of water). Across the whole dataset, ecological communities at different sampling sites (20-50km apart) account for the largest fraction of the variance (Fig. 2; `r round(OTU.count.adonis$R2[2],2)`), and different sampling events within those sites account for a similarly high proportion (`r round(OTU.count.adonis$R2[3],2)`). In contrast, biological replicates (N = 3 bottles of water per sampling event, taken ca. 10m apart) account for a small fraction (`r round(OTU.count.adonis$R2[4],2)`) of the variance, with differences among tides accounting for the smallest fraction of the variance in community dissimilarity (`r round(OTU.count.adonis$R2[1],2)`). The remainder -- `r round(OTU.count.adonis$R2[5],2)` -- is largely due to differences among technical PCR replicates (N = 3 per bottle of water), much of which derives from stochasticity in the presence of rare OTUs (Supplemental Figure 1). The comparitively low variance issuing from biological and technical replicates relative to sampling events and sites affords the resolution necessary to further examine questions of community composition across space and time. 
 
 
-```{r ADONIS_TreemapDiagrams, fig.width=3, fig.height=5.04, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:AdonisFigure}Results of PERMANOVA, apportioning variance by hierarchical levels of sampling design: Tide (incoming vs. outgoing), Sampling Site, Sampling Event (N = 4 time points per site), and Sampling Bottle (N = 3 bottles per sampling event). Residuals reflect variance among PCR replicates (N = 3 replicates per sampling bottle) as well as variation due to rarefaction stochasticity and other sampling effects. The upper panel reflects results for the dataset as a whole, with lower panels giving site-specific variances. Numbers reflect proportion of the variance explained by the indicated hierarchical level (R$^2$), with p-values in parentheses."}
+```{r FIG2_ADONIS_TreemapDiagrams, fig.width=3, fig.height=5.04, fig.path='figures/', echo=F, fig.cap="\\label{fig:AdonisFigure}Results of PERMANOVA, apportioning variance by hierarchical levels of sampling design: Tide (incoming vs. outgoing), Sampling Site, Sampling Event (N = 4 time points per site), and Sampling Bottle (N = 3 bottles per sampling event). Residuals reflect variance among PCR replicates (N = 3 replicates per sampling bottle) as well as variation due to rarefaction stochasticity and other sampling effects. The upper panel reflects results for the dataset as a whole, with lower panels giving site-specific variances. Numbers reflect proportion of the variance explained by the indicated hierarchical level (R$^2$), with p-values in parentheses."}
 
       q<-as.data.frame(OTU.count.adonis)
         row.names(q)<-c("Tide", "Site", "SamplingEvent", "Bottle", "Residuals", "Total")
@@ -528,7 +529,7 @@ q2.plot<-ggplot(q2, aes(area = R2, label=Level))+
 
 To examine the effect of tide at each of our three geographic locations independently, we again apportioned variance among sampling event, tide, sampling bottles (biological replicates), and PCR replicate (residuals; Fig. 2). Analyzing individual site-level data in this way eliminates the portion of variance due to between-site differences, effectively amplifying the contributions of the remaining hierarchical sampling levels, including tide. Because we treat tidal direction (incoming vs. outgoing) as the highest hierarchical level, we are effectively asking whether eDNA assays reflect a coherent "incoming" tidal community and a coherent "outoging" tidal community across all sites. For each of our three sampling locations, variation among sampling events remains greater than variation between incoming and outgoing tides (Figure 2b <!-- possible to make it 2a and 2b?-->, with little evidence of consistent incoming or outgoing tidal communities. 
 
-```{r BrayCurtis_timeSeries, fig.width=3, fig.height=5, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Steps with significant departures (Kruskal; p $<$ 0.01 marked with asterisks and discussed in the text. Y-axes identical to facilitate comparison across sites."}
+```{r FIG3_BrayCurtis_timeSeries, fig.width=4, fig.height=5, fig.path='figures/', echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Steps with significant departures (Kruskal; p $<$ 0.01 marked with asterisks and discussed in the text. Y-axes identical to facilitate comparison across sites."}
 #bray-curtis timeseries, within sites
   
 LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
@@ -554,8 +555,8 @@ LL.plot<-ggplot(data= LL.event1,
         geom_boxplot(fill="dodgerblue2", alpha=0.5)+
         ggtitle("Lilliwaup")+
         #scale_x_discrete(rrMeta$Tide[rrMeta$Site.x=="Lilliwaup"], breaks=c(0,1,2,3), labels=c("Incoming", "Outgoing", "Outgoing", "Incoming"))+
-        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.9)+theme_bw()+
-        annotate('text', x=4, y = 0.6, label="*", size=14)+
+        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
+        annotate('text', x=4, y = 0.6, label="*", size=12)+
         theme(aspect.ratio = 0.3)
         
 
@@ -586,7 +587,7 @@ PO.plot<-ggplot(data= PO.event1,
                 aes(y=value, x=factor(timestep)))+
   geom_boxplot(fill="dodgerblue2", alpha=0.5)+
   ggtitle("Potlatch")+
-  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.9)+theme_bw()+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
   theme(aspect.ratio = 0.3)
 
 ##########
@@ -615,8 +616,8 @@ TW.plot<-ggplot(data= TW.event1,
                 aes(y=value, x=factor(timestep)))+
   geom_boxplot(fill="dodgerblue2", alpha=0.5)+
   ggtitle("Twanoh")+
-  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,0.9)+theme_bw()+
-  annotate('text', x=3, y = 0.8, label="*", size=14)+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
+  annotate('text', x=3, y = 0.8, label="*", size=12)+
   theme(aspect.ratio = 0.3)
 
 
@@ -697,7 +698,7 @@ rrMeta$Community<-1
 ```
 
 
-```{r multiplot_NMDS_BottleTide, fig.width=4, fig.height=6.72, fig.path='figures/', dev=c('png', 'pdf'), echo=F, fig.cap="\\label{fig:fig3}(A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Bray-Curtis dissimilarities among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). (B) The same data shown as a heatmap, ordered by site identity. Only the Twanoh samples (upper right) stand out as having substantial heterogeneity, reflecting the two different communities present during different sampling events at that site. Site labels: TW = Twanoh, PO = Potlatch, LL = Lilliwaup."}     	
+```{r FIG4_multiplot_NMDS_BottleTide, fig.width=4, fig.height=6, fig.path='figures/',  echo=F, fig.cap="\\label{fig:fig4}(A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Bray-Curtis dissimilarities among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). (B) The same data shown as a heatmap, ordered by site identity. Only the Twanoh samples (upper right) stand out as having substantial heterogeneity, reflecting the two different communities present during different sampling events at that site. Site labels: TW = Twanoh, PO = Potlatch, LL = Lilliwaup."}     	
 fig3a<-      ggplot() + 
       geom_polygon(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,fill=Tides,group=Bottles), alpha=0.3) +
       geom_text(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,label=Sites),alpha=0.4,size=2)+
@@ -749,7 +750,7 @@ We created an ordination plot of Bray-Curtis distances among each of our sequenc
 
 ##Community Identity by Site and Tide
 
-```{r tide_community_figure, fig.width=5.04, fig.height=3, fig.path='figures/', dev=c('png', 'pdf'), echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, fig.cap="\\label{fig:fig4}eDNA Communities by Time, Tide, and Site. We identify community type 1 as the dominant eDNA community (as seen in Figure 3, which appears at every geographic site), and community type 2 as the distinct type occurring only at Twanoh. See text for community descriptions."}
+```{r FIG5_tide_community_figure, fig.width=6, fig.height=3, fig.path='figures/',  echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, fig.cap="\\label{fig:fig5}eDNA Communities by Time, Tide, and Site. We identify community type 1 as the dominant eDNA community (as seen in Figure 3, which appears at every geographic site), and community type 2 as the distinct type occurring only at Twanoh. See text for community descriptions."}
 
 
 #plot w ggplot
@@ -780,7 +781,7 @@ In summary, the eDNA communities are more closely associated with ecological var
 
 ##Taxa Associated with Distinct Communities
 
-```{r multiplot_community_membership, fig.width=5, fig.height=7, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset. Two temperature points are missing due to a failure of equipment."}
+```{r FIG6_multiplot_community_membership, fig.width=5, fig.height=6.8, fig.path='figures/',  echo=F,fig.cap="\\label{fig:fig6}Tidal height (m), Water temperature (C), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset. Two temperature points are missing due to a failure of equipment."}
   #################
     NOAA2<-
       NOAA%>%
@@ -833,7 +834,7 @@ multiplot(s1,s2,s4,s5, layout=matrix(c(1,2,3,4,4,4), nrow=6, ncol=1))
 To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts. We constrained the ordination by community identity as determined by the distance analysies above and filtered for highly discriminating OTUs with high read counts (> 1000 reads) to identify a set of high-leverage taxa distinguishing communities. The result was seven Families (Fig 7), two of which are animals -- Balanidae (barnacles; sessile as adults) and Acartiidae (copepods; planktonic) -- and the others of which are autotrophic groups consisting of dinoflagellates (Oxytoxaceae), chlorophytes (Mamiellaceae, Bathycoccaceae), a sessile brown alga (Scytosiphonaceae), and a another heterokont, Triparmaceae. A handful of taxa therefore distinguishes the two communities we identify with COI. However, given the well-known effects of primer bias -- by which the apparent abundance of some taxa can be grossly distorted by equating read count to organismal abundance -- we stress that here we are using a single primer set as an index of community similarity, rather than as an accurate reflection of the abundances of taxa present in the water.
 
 
-```{r TW_Families_turnover, fig.width=4, fig.height=5, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:fig7}Most influential OTUs, plotted by taxonomic Order, distinguishing the two ecological communities observed in water samples from Twanoh State Park. Shown are the taxonomic Families of OTUs with at least 1000 reads in the rarefied dataset, and having a constrained canonical correspondence analysis (CCA) score of greater than 0.7 (absolute value), which in our dataset most clearly divides the two communities. See text for CCA details. The vertical black lines in the chart delineate the communities identified previously by NMDS (see Figure 3a), with the time of each sample given along the x-axis, showing the shift from one community to the other -- and then largely back again -- within less than 24 hours. Note that each block of samples reflects a different point in the tidal cycle, and that the first two time points indicate a continuity of community membership despite a change in tide (see Figure 4)."}
+```{r FIG7_TW_Families_turnover, fig.width=4, fig.height=5, fig.path='figures/',  echo=F, warning=F, message=F, fig.cap="\\label{fig:fig7}Most influential OTUs, plotted by taxonomic Order, distinguishing the two ecological communities observed in water samples from Twanoh State Park. Shown are the taxonomic Families of OTUs with at least 1000 reads in the rarefied dataset, and having a constrained canonical correspondence analysis (CCA) score of greater than 0.7 (absolute value), which in our dataset most clearly divides the two communities. See text for CCA details. The vertical black lines in the chart delineate the communities identified previously by NMDS (see Figure 3a), with the time of each sample given along the x-axis, showing the shift from one community to the other -- and then largely back again -- within less than 24 hours. Note that each block of samples reflects a different point in the tidal cycle, and that the first two time points indicate a continuity of community membership despite a change in tide (see Figure 4)."}
 #just TW
   TW.OTUs<-rrOTUs[,grepl("TW", colnames(rrOTUs))]; TW.OTUs<-TW.OTUs[rowSums(TW.OTUs)>0,]
 z<-cca(t(TW.OTUs)~rrMeta$Community[rrMeta$Site.x=="Twanoh"])
@@ -862,7 +863,7 @@ ggplot(InfluentialOTUsMelted[grepl("TW", InfluentialOTUsMelted$Var2),], aes(x=Va
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5, margin = margin(t = 10, b = 15), size=10),
+        plot.title = element_text(hjust = 0.5, margin = margin(t = 10, b = 15, r=15), size=10),
         legend.position="bottom",
         axis.text.x = element_text(angle = 90, hjust = 1, size=6),
         aspect.ratio = 1
@@ -877,36 +878,15 @@ ggplot(InfluentialOTUsMelted[grepl("TW", InfluentialOTUsMelted$Var2),], aes(x=Va
 
 #Discussion
 
-Environmental DNA is rapidly becoming an essential and widely-used tool to identify community membership in aquatic environments (review REFS). It is not yet clear to what extent the sequences identified in eDNA studies reflect the presence of local organisms in time and space, however (locality REFS). Of particular interest in marine systems is the influence of tide on the detection of ecological communities: Must sampling schemes standardize tidal height and direction during collection to detect consistent groups of species? Does each tide bring with it a new water masse, carrying exogenous DNA, or do the sequences detected at any given time accurately reflect the species present within a habitat in that moment? To address these questions, we collected and analyzed eDNA communities at three different sites along the Hood Canal over the course of two tidal turnovers (Figure X - sampling scheme). Thus, for each site, we were able to examine the influence of reversals in tidal direction on two separate occasions.  
+Environmental DNA is rapidly becoming an essential and widely-used tool to identify community membership in aquatic environments [@deiner2017environmental; @thomsen2015environmental; @kelly2016genetic; @taberlet2012environmental; @yamamoto2016environmental; @spear2015using]. It is not yet clear to what extent the sequences identified in eDNA studies reflect the presence of local organisms in time and space, however [@jane2015distance; @wilcox2016understanding; @MEC:MEC13481]. Of particular interest in marine systems is the influence of tide on the detection of ecological communities: must sampling schemes standardize tidal height and direction during collection to detect consistent groups of species? Does each tide bring with it a turnover in water, carrying exogenous DNA, or do the sequences detected at any given time accurately reflect the species present within a habitat in that moment? But more generally for eDNA studies, to what extent must we worry about where DNA comes from and where it goes? To address these questions, we collected and analyzed eDNA communities at three different sites along the Hood Canal over the course of multiple tidal turnovers. Thus, for each site, we were able to examine the influence of reversals in tidal direction and larger-scale changes in the water present at our study sites.
 
-When analyzed together, eDNA collections from three locations (Lilliwaup, Potlatch, and Twanoh) show substantial variance in OTU membership and prevalence associated primarily with geographic location (Adonis table/fig). Grouping of samples in ordination space is also strongly associated with site, rather than with tide (all-sample NMDS). Together, these results suggest that eDNA surveys designed to clarify relationships between distinct ecological communities are not likely to suffer substantially from sample collection at varying points in the tidal cycle, because the twice-daily exchange (or at least, mass movement) of water into- and out of our sampling sites appeared to have little influence on the sequences detected overall. 
+When analyzed together, eDNA collections from three locations (Lilliwaup, Potlatch, and Twanoh) show substantial variance in OTU membership and prevalence associated primarily with geographic location (Figure 2). Grouping of samples in ordination space is also strongly associated with site, rather than with tide (Figure 4a). Together, these results suggest that eDNA surveys designed to clarify relationships between distinct ecological communities are not likely to suffer substantially from sample collection at varying points in the tidal cycle, because the twice-daily exchange of water into- and out of our sampling sites appeared to have little influence on the sequences detected overall. 
 
-Although the effect of tide on eDNA community composition is small when multiple geographic sites are considered simultaneously, tidal direction may still strongly influence the OTUs detected within a single location. The existence of among-site differences in ecological community in fact provide the resolution necessary to detect such a local influence of tide, if present - exogenous DNA arriving periodically with tidal flow at each site might closely resemble neighboring communities, and differ consistently from endogenous DNA collected on the ebb tide, which has spent hours in contact with local benthic flora and fauna. A site-by-site analysis reveals that a substantial proportion of the variance in OTU counts is associated with tide, but never as much as is associated with sampling event (Adonis single site table/figs). Additionally, visualization of samples from each geographic location in ordination space shows no recognizable grouping by tide (NMDS single site figs). Finally, the eDNA community present at a single site tends to drift over time, decreasing in similarity to the initial sample, regardless of tide (Time graphs). Together, these results suggest that the effect of tidal flow on eDNA community membership increases when geographic sites are considered independently, but remains small in comparison to the importance of sampling event, overall.  
+Although the effect of tide on eDNA community composition is small when multiple geographic sites are considered simultaneously, tidal direction may still influence the OTUs detected within a single location. The existence of among-site differences in ecological communities in fact provide the resolution necessary to detect such a local influence of tide, if present - exogenous DNA arriving periodically with tidal flow at each site might closely resemble neighboring communities, and differ consistently from endogenous DNA collected on the ebb tide, which has spent hours in contact with local benthic flora and fauna. A site-by-site analysis reveals that a significant proportion of the variance in OTU counts is associated with tide, but never as much as is associated with differences between sampling events (Figure 2); these results suggest relatively small within-day variance in OTU detection at each site dominates changes at the site scale and accordingly that there is no coherent incoming- or outgoing-tide eDNA fauna. Additionally, the eDNA community present at a single site tends to drift little over time and with successive tidal turnovers, instead changing in association with changes in salinity and temperature of the water mass present at the time of sampling (Figure 3). Together, these results suggest that the effect of tidal flow, *per se*, on eDNA community membership is minimal relative to the differences associated with changes in water characteristics and geographic site.  
 
-Rather than tide, ecological variables such as temperature and salinity, each of which differ among sites and sampling events, seem to drive the bulk of the variance in eDNA community membership (Stacked Figure). These variables are key determinants of marine habitat type, especially for planktonic species. At Twanoh we sampled by chance a dramatic turnover in species composition within the span of just a few hours, and a parallel shift in ecological variables. The families most notably associated with this shift in community are indeed planktonic, suggesting that eDNA survey methodology succeeded in identifying the species physically present within the water column at the time of sampling. However, the entrance and exit of a water masse and planktonic community with characteristics more common at neighboring sites decreased but did not eradicate the signal from sessile species that consistently appeared at Twanoh. In summary, the sequenced eDNA community reflects contributions from both organisms living within the water itself, as well as sessile species in contact with that more mobile community.
+Rather than tide, ecological variables such as temperature and salinity, each of which differ among sites and sampling events, drive the bulk of the variance in eDNA community membership (Figure 6 and multiple regression). At Twanoh, we sampled by chance a dramatic shift in species composition from community 2 to community 1 within the span of just a few hours, and a concomitant shift towards warmer, more saline water relative to baseline. Of the seven families most notably associated with this turnover, four single-celled planktonic taxa (Triparmaceae, Oxytoxaceae, Mamiellaceae, and Bathycoccoceae) increased in OTU count with intrusion of the warmer, saltier water mass. By contrast, two families with sessile adults (Balanidae and Scytosiphonaceae) and one planktonic animal (Arctiideae) decreased (Most Influential OTUs figure). These results broadly suggest that eDNA survey methodology succeeds in identifying the planktonic species physically present within the water column at the time of sampling. Additionally, the entrance and exit of a mobile, aqueous habitat with characteristics more common at neighboring sites diminishes but does not eradicate the signal from sessile groups. In summary, the sequenced eDNA community reflects contributions from both organisms living within the water itself, as well as immobile species in contact with that more mobile community.
 
-Taken together, our results suggest that eDNA samples taken from even highly dynamic environments reflect recent contributions from local species. With the exception of the occasional movement of water masses representing distinct habitats for planktonic organisms, the eDNA communities we sampled at three geographic sites were largely stable over time and tide.  Practically, this suggests that intertidal eDNA research should be performed with substantial attention to ecological variables such as temperature and salinity, which serve as markers of the aqueous habitat present, and may not remain consistent geographically. In contrast, tidal turnover appears to be a secondary consideration that does not dramatically or consistently affect the commmunity sampled, even within a single geographic location. Marine intertidal eDNA surveys therefore appear to reflect the endogenous DNA of the organisms present in the water and on the benthic substrate at the time of sampling.
-
-<!-- Save the following for conclusion - no one knows it's plankton yet: "This, in turn, suggests that communities (particularly planktonic communities) change when the water characteristics change." -->
-
-[eDNA sequenced from a nearshore habitat is likely a function of (production by species in the water column) + (production by sessile, infaunal, or otherwise locally present species) + (transport from elsewhere) - (transport to elsewhere) - (degradation and sequestration).  Without modeling these terms explicitly, our results are consistent with earlier findings that long-distance transport of eDNA appears unlikely: each of our sites showed consistent differences, despite being located within 10s of km of one another. Furthermore, the water changeover at Twanoh sheds light on the balance between water- and surface-generated eDNA...  ]
-
-[if we see Hood Canal as a large, homogeneous pool of DNA, sites wouldn't sort. But they do. and sites remain stable over time, relatively. so DNA isn't just associated with water, because water characteristics are similar in most instances (it's the same water mass at LL and PO, but the communities are predictably different). So there must be a water-mass term and a non-water-mass term.]
-
-
-
-<!--
-Where nearby habitats share the same complement of species, it becomes difficult to distinguish DNA of exogenous versus endogenous origin,  because of the lack of contrast between the two.  By chance our sampling design detected starkly different ecological communities associated with  different water masses, allowing us to identify a changeover between communities at one of our sampling sites, while the communities at the other two sampling sites remained constant over multiple tides. Taken together, these results suggest that eDNA samples taken from even highly dynamic environments reflect recent contributions from local species.
-
-* 
-* These results suggest that eDNA communities are likely to be stable over time, consistent with the stability of the sampled habitats.
-* By contrast, where water characteristics -- as opposed to mere tidal fluctuations having the same water characteristics -- changed, we detected a wholly different eDNA community. 
-* This change was mainly visible in the planktonic species, and in particular, in marine microalgal species, although this may be because of these species' being most prominently represented in our 18S dataset. 
-* Our eDNA samples appear to reflect the immediate aquatic habitat sampled, rather than exogeneous DNA from elsewhere; this is consistent with earlier studies. 
--->
-
-  
-
+Taken together, our results suggest that eDNA samples taken from even highly dynamic environments reflect recent contributions from local species. With the exception of the occasional movement of water masses representing distinct habitats for planktonic organisms, the eDNA communities we sampled at three geographic sites were largely stable over time and tide. Practically, this suggests that intertidal eDNA research should be performed with substantial attention to ecological variables such as temperature and salinity, which serve as markers of the aqueous habitat present and which may not remain consistent geographically. In contrast, tidal turnover itself appears to be a secondary consideration that does not dramatically or consistently affect the commmunity sampled, even within a single geographic location. Marine intertidal eDNA surveys therefore appear to reflect the endogenous DNA of the organisms present in the water and on the benthic substrate at the time of sampling.
 
 ##Acknowledgements
 We thank K. Cribari for lab assistance, as well as R. Morris, G. Rocap, and V. Armbrust at the UW Center for Environmental Genomics. Special thanks to M. Kelly, A. Ram\'{o}n-Laca, and E. Flynn for facilitating fieldwork, and Julieta, Damián, and Owen for field assistance.  We are also greatful to L. Park, J. O'Donnell, K. Nichols, and P. Schwenke at NMFS for sequencing support and expertise. 
@@ -920,12 +900,16 @@ David and Lucile Packard Foundation: 2016-65101.
 
 ##Author Contributions
 Ramón Gallego conceived of and designed the experiments, performed the experiments, analyzed the data, contributed reagents/materials/analysis tools, and contributed to drafts of the paper.
- 
+
 Ryan Kelly performed the experiments, analyzed the data, drafted the paper, and prepared figures and/or tables.
 
 Emily Jacobs-Palmer helped carry out analysis, suggested additional analyses, and helped draft the paper. 
 
+\newpage
+
 #Supplemental Information
+
+
 ```{r Supplement_GPScoordinatesSamplingAreas, echo=F, message=F}
 
 kable(data.frame(
@@ -937,11 +921,11 @@ kable(data.frame(
 
 
 ```{r SupplTaxonSummaryTable}
-kable(read.csv("TaxonCountsSummaryTable_20171012.csv",colClasses=c("NULL",NA,NA,NA,NA,NA,NA, NA)), style='Latex', align="c", caption="Summary of unique annotations, by taxonomic rank, in the COI dataset.")
+kable(read.csv("TaxonCountsSummaryTable_20171012.csv",colClasses=c("NULL",NA,NA,NA,NA,NA,NA, NA))[,-6], style='Latex', align="c", caption="Summary of unique annotations, by taxonomic rank, in the COI dataset.")
 ```
 
 
-```{r Load_Supplement_Rarefaction_data, fig.width=3, fig.height=3, fig.path='figures/', dev=c('png', 'pdf'), echo=F, message=F, fig.cap="\\label{fig:SuppFig1} Differences among rarefaction draws expressed as median Bray-Curtis dissimilarities. The lack of variation in median dissimilarity among rarefaction draws underscores the fact that the results we present in the main manuscript do not differ substantially among different rarefaction draws."}
+```{r Supplement_Rarefaction_data, fig.width=4, fig.height=4, fig.path='figures/',  echo=F, message=F, fig.cap="\\label{fig:SuppFig1} Differences among rarefaction draws expressed as median Bray-Curtis dissimilarities. The lack of variation in median dissimilarity among rarefaction draws underscores the fact that the results we present in the main manuscript do not differ substantially among different rarefaction draws."}
 
 #Note: the loop below takes a minute or two to process, so I have saved output to save time.
 # rrSupplement<-list()
@@ -955,12 +939,12 @@ kable(read.csv("TaxonCountsSummaryTable_20171012.csv",colClasses=c("NULL",NA,NA,
 # }
 #save(rrSupplement, file="rrSupplement_rarefactionDraws.Rdata")
 load("rrSupplement_rarefactionDraws.Rdata")
-hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Curtis Dissimilarity\nEach of 100 Rarefaction Draws", xlab="Bray-Curtis Dissimilarity")
+hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Curtis Dissimilarity\nEach of 100 Rarefaction Draws", xlab="Bray-Curtis Dissimilarity", cex.main=.9)
 
 ```
 
 
-```{r stochastic_variation_rareTail, echo=FALSE,warning=FALSE,message=FALSE, error=FALSE,  fig.height = 4, fig.width = 5, fig.cap="\\label{fig:SuppFig2}Variation among technical (PCR) replicates, expressed as Bray-Curtis dissimilarity among replicates using data subsets according to OTU commonness. Replicates are similar with respect to common OTUs, but stochasticity quickly dominates as OTUs become rarer, such that PCR replicates appear quite different with respect to OTUs in the bottom 90 percent of commonness."}
+```{r stochastic_variation_rareTail, echo=FALSE,warning=FALSE,message=FALSE, error=FALSE,  fig.height = 3, fig.width = 4, fig.cap="\\label{fig:SuppFig2}Variation among technical (PCR) replicates, expressed as Bray-Curtis dissimilarity among replicates using data subsets according to OTU commonness. Replicates are similar with respect to common OTUs, but stochasticity quickly dominates as OTUs become rarer, such that PCR replicates appear quite different with respect to OTUs in the bottom 90 percent of commonness."}
 		binNo<-cut(1:nrow(rrOTUs), 100, labels=F)  #N equal-sized groups
 		MeanBC<-list()
 		replicates=substr(colnames(rrOTUs), 1,11) #create vector of replicate names
@@ -989,8 +973,9 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 		  xlab("Percentile OTU Commonness")+ylab("Mean Bray-Curtis Among Technical Replicates")+
 		  ggtitle("Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness")+
 		  theme(
-		    plot.title=element_text(hjust=0.5, size=10),
-		    axis.text.x = element_text(angle=90, size=5)
+		    plot.title=element_text(hjust=0.5, size=8),
+		    axis.text.x = element_text(angle=90, size=5),
+		    axis.title.y = element_text(size=8)
 		    )
 		
 		
@@ -999,7 +984,7 @@ hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Cu
 ```
 
 
-```{r ContextualWaterData_WAEcology, fig.cap="\\label{fig:SupplementalWaterChem}Contextual water data for the month of March from the Washington State Department of Ecology (https://fortress.wa.gov/ecy/eap/marinewq/mwdataset.asp). Plots are arranged north to south, with the southernmost point being Lynch Cove, near our sampled site of Twanoh. Red points indicate Temperature/Salinity data in the range of those in which we observed eDNA Community 2; these are far more common in the southern end of Hood Canal than in the north, which has a stronger oceanic influence."}
+```{r ContextualWaterData_WAEcology, fig.cap=paste0("\\label{fig:SupplementalWaterChem}Contextual water data for the month of March from the Washington State Department of Ecology (https://fortress.wa.gov/ecy/eap/marinewq/mwdataset.asp). Plots are arranged north to south, with the southernmost point being Lynch Cove, near our sampled site of Twanoh. Red points indicate Temperature/Salinity data in the range of those in which we observed eDNA Community 2; these are far more common in the southern end of Hood Canal than in the north, which has a stronger oceanic influence. The data show more southern points in the Hood Canal have an increased likelihood of cold, fresh water in March (red points). These make up the following proportions: Admiralty Inlet = 0, Send Creek = 0, Hamma Hamma =",round(nrow(filter(alldata, station=="Hamma" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "Hamma")),2), ", Great Bend = ",round(nrow(filter(alldata, station=="GreatBend" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "GreatBend")),2),", Lynch Cove = ",round(nrow(filter(alldata, station=="LynchCove" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "LynchCove")),2),".")}
 
 Hamma<-read.csv("ECY_waterData/HCB003_0_provisional.csv")
 GreatBend<-read.csv("ECY_waterData/HCB004_0_provisional.csv")
@@ -1037,6 +1022,9 @@ ggplot(alldata, aes(x=sal, y=temp, color=sal<20&temp<9))+
   xlab("Salinity (psu)")+ylab("Temperature (C)")+
   theme(aspect.ratio = 1.68)
   
+```
+
+```{r SupplTable_EcologySampling, echo=F}
 
 ECYlatlong<-
   data.frame(rbind(
@@ -1047,14 +1035,15 @@ ECYlatlong<-
     c("Lynch Cove", 47.3983,	-122.9283)
   )); colnames(ECYlatlong)<- c("Site Name", "Latitude", "Longitude")
 
+
 kable(ECYlatlong, format="latex", align="c", caption = "Coordinates for WA Department of Ecology water quality sampling sites, which encompass the waters we sampled for the study presented in the main text.")
 
 ```
 
-Supplemental Figure X shows more southern points in the Hood Canal as having an increased likelihood of cold, fresh water in March (red points). These make up the following proportions: Admiralty Inlet = 0, Send Creek = 0, Hamma Hamma = `r round(nrow(filter(alldata, station=="Hamma" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "Hamma")),2)`, Great Bend = `r round(nrow(filter(alldata, station=="GreatBend" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "GreatBend")),2)`, Lynch Cove = `r round(nrow(filter(alldata, station=="LynchCove" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "LynchCove")),2)`.
 
 
 
+\newpage
 
 #References
 
