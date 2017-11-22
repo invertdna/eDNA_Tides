@@ -1,5 +1,5 @@
 ---
-title: "Tides and Nearshore eDNA"
+title: "The Effect of Tides on Nearshore Environmental DNA"
 author: "Kelly, Gallego, and Jacobs-Palmer"
 date: "Nov 2017"
 output:
@@ -307,7 +307,7 @@ By contrast, less work has focused on the behavior of eDNA as reflected in ecolo
 
 Nearshore marine habitats are among the most physically dynamic and biologically diverse on earth [@helmuth2006living]. The movement of water associated with tide is a fundamental property of these environments [@Babson2006], dramatically shaping the life histories and ecology of organisms that live there. Environmental DNA surveys hold particular promise for better understanding thousands of species that may co-occur at a single nearshore marine location. However, use of this technique in the intertidal zone requires a practical knowledge of the effects of tide on the presence of eDNA sequences. Moreover, the intertidal environment provides rigorous testing grounds in which to discern the origins of genetic material detected in eDNA surveys, more generally. 
 
-Given recent work suggesting that eDNA signals are predominantly highly localized in space and time [@THOMSEN20154, and references therein] -- although in some circumstances, eDNA may travel some distance [@deiner_transport_2014-1] -- we asked whether marine eDNA community composition changes over tidal cycles at a given location. A scenario in which eDNA communities change in unpredictable ways with each new tide would suggest an exogeneous origin for that DNA, such that DNA arrives at a site with incoming tides, drawn from a pool of organisms existing elsewhere. By contrast, consistent eDNA communities over multiple tidal cycles would strongly suggest an endogenous origin and highly localized signal.
+Given recent work suggesting that eDNA signals are predominantly highly localized in space and time [@thomsen2015environmental, and references therein] -- although in some circumstances, eDNA may travel some distance [@deiner_transport_2014-1] -- we asked whether marine eDNA community composition changes over tidal cycles at a given location. A scenario in which eDNA communities change in unpredictable ways with each new tide would suggest an exogeneous origin for that DNA, such that DNA arrives at a site with incoming tides, drawn from a pool of organisms existing elsewhere. By contrast, consistent eDNA communities over multiple tidal cycles would strongly suggest an endogenous origin and highly localized signal.
 
 In a spatially- and temporarily-replicated study, we find that nearshore COI eDNA community composition is not strongly influenced by tide, and instead remains largely consistent within each geographic location across multiple successive tides. However, where dramatic shifts in the physical and chemical aqueous environment suggest arrival of a new water mass at a single sampling site, the eDNA community appears to change accordingly. It therefore seems likely that changes in aqueous habitat characteristics -- not tide itself -- yield changes in eukaryotic eDNA communities.
 #Methods
@@ -773,7 +773,7 @@ In summary, the eDNA communities are more closely associated with ecological var
 
 ##Taxa Associated with Distinct Communities
 
-```{r multiplot_community_membership, fig.width=5, fig.height=6, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), DNA concentration recovered (ng/mL), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset."}
+```{r multiplot_community_membership, fig.width=5, fig.height=7, fig.path='figures/', dev=c('png', 'pdf'), echo=F,fig.cap="\\label{fig:fig5}Tidal height (m), Water temperature (C), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset. Two temperature points are missing due to a failure of equipment."}
   #################
     NOAA2<-
       NOAA%>%
@@ -795,8 +795,8 @@ s1<-ggplot(aes(y=Pred, x=BottleOrder, color=Community, group=Pred), data=NOAA2)+
 
 s2<-ggplot(aes(y=Temperature, x=BottleOrder, color=Community, group=Pred), data=NOAA2[!is.na(NOAA2$Temperature),])+geom_line(size=2)+xlab("")+ylab("Temperature")+guides(color=F)+coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-5.5,5), "pt"))+theme(axis.title=element_text(size=8))
 
-s3<-ggplot(aes(y=Qubit_ngul, x=BottleOrder, color=Community), data=NOAA2)+geom_point(size=2)+xlab("")+ylab("Total DNA Recovered")+guides(color=F)+
-    coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-5.5,8), "pt"))+theme(axis.title=element_text(size=8))
+#s3<-ggplot(aes(y=Qubit_ngul, x=BottleOrder, color=Community), data=NOAA2)+geom_point(size=2)+xlab("")+ylab("Total DNA Recovered")+guides(color=F)+
+#    coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-5.5,8), "pt"))+theme(axis.title=element_text(size=8))
 
 s4<-ggplot(aes(y=Salinity_refractometer, x=BottleOrder, color=Community, group=Pred), data=NOAA2)+geom_line(size=2)+xlab("")+ylab("Salinity")+guides(color=F)+
     coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-12,5), "pt"))+theme(axis.title=element_text(size=8))
@@ -810,17 +810,20 @@ z<-FamilyCountsSums
   z$variable<-factor(z$variable, levels=unique(NOAA2$bottle))
 s5<-ggplot(z, aes(y=value, x=variable, fill=Family))+
     geom_bar(stat='identity')+theme_minimal()+scale_fill_brewer(palette="Spectral")+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom")+theme(axis.title=element_text(size=8))+
-    guides(fill=guide_legend(ncol=5), size=2)+xlab("Sample")+ylab("Proportion Reads, Top 10 Families")+theme(plot.margin = unit(c(0,3,0,0), "pt"))
+    theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom",
+          axis.title=element_text(size=8),
+          plot.margin = unit(c(0,3,0,0), "pt"),
+          legend.text=element_text(size=6),
+          legend.title = element_blank()
+    )+
+    guides(fill=guide_legend(ncol=5))+xlab("Sample")+ylab("Proportion Reads, Top 10 Families")
 
-multiplot(s1,s2,s3,s4,s5, layout=matrix(c(1,2,3,4,5,5,5), nrow=7, ncol=1))     
-
+#multiplot(s1,s2,s3,s4,s5, layout=matrix(c(1,2,3,4,5,5,5), nrow=7, ncol=1))     
+multiplot(s1,s2,s4,s5, layout=matrix(c(1,2,3,4,4,4), nrow=6, ncol=1))     
 ```
 
 
-To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts -- constrained by community identity as determined by the distance analysies above -- and filtered for highly discriminating OTUs with high read counts (> 1000 reads). The result was seven Families (Fig 7), two of which are animals -- Balanidae (barnacles; sessile as adults) and Acartiidae (copepods; planktonic) -- and the others of which are autotrophic groups consisting of dinoflagellates (Oxytoxaceae), chlorophytes (Mamiellaceae, Bathycoccaceae), a sessile brown alga (Scytosiphonaceae), and a [another heterokont, Triparmaceae].
-
-A handful of common green algae and benthic invertebrates (each of which have larval phases) therefore distinguish the two communities we identify with COI. However, given the well-known effects of primer bias -- by which the apparent abundance of some taxa can be grossly distorted by equating read count to organismal abundance -- we stress that here we are using a single primer set as an index of community similarity, rather than as an accurate reflection of the abundances of taxa present in the water.
+To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts. We constrained the ordination by community identity as determined by the distance analysies above and filtered for highly discriminating OTUs with high read counts (> 1000 reads) to identify a set of high-leverage taxa distinguishing communities. The result was seven Families (Fig 7), two of which are animals -- Balanidae (barnacles; sessile as adults) and Acartiidae (copepods; planktonic) -- and the others of which are autotrophic groups consisting of dinoflagellates (Oxytoxaceae), chlorophytes (Mamiellaceae, Bathycoccaceae), a sessile brown alga (Scytosiphonaceae), and a another heterokont, Triparmaceae. A handful of taxa therefore distinguishes the two communities we identify with COI. However, given the well-known effects of primer bias -- by which the apparent abundance of some taxa can be grossly distorted by equating read count to organismal abundance -- we stress that here we are using a single primer set as an index of community similarity, rather than as an accurate reflection of the abundances of taxa present in the water.
 
 
 ```{r TW_Families_turnover, fig.width=4, fig.height=5, fig.path='figures/', dev=c('png', 'pdf'), echo=F, warning=F, message=F, fig.cap="\\label{fig:fig7}Most influential OTUs, plotted by taxonomic Order, distinguishing the two ecological communities observed in water samples from Twanoh State Park. Shown are the taxonomic Families of OTUs with at least 1000 reads in the rarefied dataset, and having a constrained canonical correspondence analysis (CCA) score of greater than 0.7 (absolute value), which in our dataset most clearly divides the two communities. See text for CCA details. The vertical black lines in the chart delineate the communities identified previously by NMDS (see Figure 3a), with the time of each sample given along the x-axis, showing the shift from one community to the other -- and then largely back again -- within less than 24 hours. Note that each block of samples reflects a different point in the tidal cycle, and that the first two time points indicate a continuity of community membership despite a change in tide (see Figure 4)."}
