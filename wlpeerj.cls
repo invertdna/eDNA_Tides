@@ -30,7 +30,7 @@
 \RequirePackage{booktabs}
 \RequirePackage{authblk}
 
-\RequirePackage[left=5cm,%
+\RequirePackage[left=3cm,%
                 right=2cm,%
                 top=2.25cm,%
                 bottom=2.25cm,%
