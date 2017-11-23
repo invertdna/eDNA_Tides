@@ -1,0 +1,1081 @@
+---
+title: "The Effect of Tides on Nearshore Environmental DNA"
+author: "Kelly, Gallego, and Jacobs-Palmer"
+date: "Nov 2017"
+output:
+  pdf_document: 
+    fig_caption: yes
+    keep_tex: yes
+    template: peerj.sty
+    number_sections: no
+  html_document:
+    fig_caption: yes
+    force_captions: yes
+    number_sections: no
+    theme: readable
+bibliography: moncho.bib
+csl: PeerJ_citation.csl
+---
+
+```{r setup, echo =FALSE, echo=F, warning=F, error=F, include=FALSE}
+
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  echo = FALSE,
+  fig.align="center",
+  dev = 'pdf',
+  dpi=300,
+  fig.pos = '!ht'
+  )
+options("max.print"=10000)
+options(scipen = 0, digits = 4)
+knitr::knit_hooks$set(inline = function(x) {
+      if(is.numeric(x)){
+          return(prettyNum(x, big.mark=","))
+      }else{
+          return(x)
+       }
+   })
+```
+
+```{r loadLibraries_etc, echo=F, error=F, message=FALSE, warning=F, include=FALSE}
+##########LOAD LIBRARIES and FUNCTIONS#############
+#How to check if you have all needed packages installed, introducing: uptodate.R
+#source("uptodate.R")
+libs=c("vegan","plotrix","MASS","data.table", "gdata","lattice","plyr", "gridExtra", "readxl", "Biostrings", "ggmap", "xtable", "pander","RColorBrewer", "ggfittext", "treemapify", "kableExtra", "knitr", "tidyverse", "RCurl")
+#uptodate(libs)
+lapply(libs, require, character.only = TRUE)
+
+multiplot.script<-getURL("https://raw.githubusercontent.com/larmarange/JLutils/master/R/multiplot.R", ssl.verifypeer = FALSE); eval(parse(text = multiplot.script))  #ggplot multiplot function from github
+
+bit=function(x){print(x[c(1:10),c(1:10)]); print(dim(x))}  #shows top-left corner of a data.frame/matrix; useful for large datasets
+colMax <- function(data) sapply(data, max, na.rm = TRUE) #get column-wise maximum value
+Col2RN<-function(df, x){row.names(df)<-df[,x]; df<-df[-x]; return(df)} #convert column to row.names
+cumProb=function(x) 1-prod(1-x)  #define cumulative prob function
+gg_colors <- function(n) {
+		  hues = seq(15, 375, length=n+1)
+		  hcl(h=hues, l=65, c=100)[1:n]
+		} #color palette
+lm_eqn = function(m) {
+  
+  l <- list(a = format(coef(m)[1], digits = 2),
+            b = format(abs(coef(m)[2]), digits = 2),
+            r2 = format(summary(m)$r.squared, digits = 3));
+  
+  if (coef(m)[2] >= 0)  {
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,l)
+  } else {
+    eq <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2,l)    
+  }
+  
+  as.character(as.expression(eq));                 
+} #get equation of lm; from https://stackoverflow.com/questions/7549694/adding-regression-line-equation-and-r2-on-graph
+###################################################
+```
+
+```{r loadData_etc, echo=F, error=F, message=FALSE, warning=F, include=FALSE}
+##########LOAD METADATA############################
+#Note: this project required merging data from two different sequencing runs, a MiSeq PE300 run and a MiSeq Nano PE300 run.  So below the code loads the metadata from each of those, then combines the two, then loads the combined OTU data.
+
+#MiSeq full run metadata
+  	meta=read.csv("MiSeq_metadata_wTides.csv")
+  	sampleInfo<-read.csv("SampleCovariates.csv")
+  		names(sampleInfo)[1]<-"original_sample"
+  		meta<-merge(meta, sampleInfo, by="original_sample", all=T)
+  		meta<-meta[1:99,] #get rid of extra empty rows
+  	lib_tags= paste0("ID1=",meta$pri_index_name, ";ID2A=",meta$tag_sequence, ";ID2B=",as.character(reverseComplement(DNAStringSet(meta$tag_sequence))))  
+  	  meta<-meta[-4,] #missing seq data for this sample
+  	lib_tags<-lib_tags[-4]  #missing seq data for this sample
+      meta$lib_tags<-lib_tags #add lib tags to metadata
+      meta$run<-"20170727_MiSeq"
+###get metadata from nano run, and merge
+    metaNano=read.csv("MiSeq_nano_metadata.csv")
+    #sampleInfo<-as.data.frame(gs_read(gs_title("Step1_Samples"))) #field data for covariates
+    #names(sampleInfo)[1]<-"original_sample"
+    metaNano <-merge(metaNano, sampleInfo, by="original_sample", all=T)
+    metaNano<-metaNano[!is.na(metaNano$sample_name),]
+    levels(metaNano$tag_sequence)<-c(levels(metaNano$tag_sequence), "noTag")
+    metaNano$tag_sequence[metaNano$tag_number=="No_Tag"]<-"noTag"
+      lib_tags_nano= paste0("ID1=", metaNano $pri_index_seq, ";", metaNano $tag_sequence)  
+    metaNano$lib_tags<-lib_tags_nano
+    metaNano$run<-"20170710_Nano"
+
+#create merged metadatafile
+allMeta<-merge(meta, metaNano, all=T)
+    allMeta$sample_name<-as.character(allMeta$sample_name)
+    allMeta<-allMeta[order(allMeta$sample_name),]
+    #need to disambiguate sample names across runs and homogenize naming conventions
+    allMeta$sample_name[74:81]<-paste0("TW20170311", gsub("TW11", "",allMeta$sample_name[74:81]))
+    allMeta$sample_name[1:4]<-paste0("LL20170312", gsub("LL12", "",allMeta$sample_name[1:4]))
+    allMeta$sample_name[34]<-"Ostrich4"
+    allMeta<-allMeta[order(allMeta$sample_name),]
+    
+    #interpolate/harmonize salinity measurements [we measured with two different instruments -- a Hannah multi-probe (here, called "YSI", because that was shorter), and a hand-held analog refractometer. The refractometer proved more reliable and accurate.]
+    mod<-lm(Salinity_YSI~Salinity_refractometer, data=allMeta)
+    mod2<-lm(Salinity_refractometer ~Salinity_YSI, data=allMeta)
+    	missingYSI<-which(is.na(allMeta$Salinity_YSI) &  !is.na(allMeta$Salinity_refractometer))
+  	missingRefract<-which(is.na(allMeta$Salinity_refractometer) &  !is.na(allMeta$Salinity_YSI))  
+    allMeta$Salinity_YSI[missingYSI]<-round((allMeta$Salinity_refractometer[missingYSI]*mod[[1]][2])+mod[[1]][1],1)
+    allMeta$Salinity_refractometer[missingRefract]<-round((allMeta$Salinity_YSI[missingRefract]*mod2[[1]][2])+mod2[[1]][1],1)
+#format date/time in metadata
+ allMeta$DateTime<- as.POSIXct(strptime(paste(allMeta$Date, allMeta$Time), format="%Y%m%d %H:%M"))
+
+ #load GPS coordinates
+ 
+ #######################################################
+
+##########LOAD OTU Data  ##############################
+#OTU data
+allOTUs<-
+	read.table("OTU.map") %>%
+	filter(V2%in%allMeta$lib_tags) 
+  allOTUs$V2<-allMeta $sample_name[match(allOTUs$V2, allMeta$lib_tags)]
+  allOTUs<-spread(allOTUs, key=V2, value=V3, fill=0)%>%
+   Col2RN(1)
+
+  READcount1<-sum(sum(allOTUs))
+  OTUcount1<-nrow(allOTUs)
+  
+  ###First decontamination step: occupancy modeling analysis
+load("ProbOccCOI_dataOUT08_22_46.Rdata")
+  #filter OTUs by max occupancy prob; keeping those with at least 80% chance of being truly present, based upon distribution of occupancy probs
+        a<-aggregate(dataOUT$probOcc, list(dataOUT$OTUname), max)
+          a<-a[a$x>0.8,]  #take only OTUs for which at least one population has a high probability of being truly present.
+        allOTUs<-allOTUs[match(a$Group.1, row.names(allOTUs)),]; rm(a)
+	    allOTUs<-allOTUs[,-grep("LL20170312C.1", colnames(allOTUs), ignore.case=T)]#mislabeled sample
+      allOTUs <-allOTUs[order(rowSums(allOTUs), decreasing=T),] #order by rowSums
+	    allOTUs <-allOTUs[,order(colnames(allOTUs))] #order column names
+	
+	READcount2<-sum(sum(allOTUs))
+	  OTUcount2<-nrow(allOTUs)
+
+#for cumulative probability of individual Families	  
+    load("OTUprob.RData")
+    dataOUT<-OTUprob; rm(OTUprob)
+	  
+	  
+#######################################################
+
+					###################################################
+					#interal DECONTAMINATION STEP using controls 
+					###################################################
+					samples_all <- allOTUs					
+						CONTROL=allMeta[grepl("Ostrich", allMeta$sample_name),]  #select relevant samples from the metadata
+						samples_con <- samples_all[,colnames(samples_all)%in%CONTROL$sample_name]  #control samples
+						samples_env <- samples_all[,!colnames(samples_all)%in%colnames(samples_con)] #environmental samples
+						control_taxon <- names(which.max(rowSums(samples_con)))					
+						contam_proportion_df=data.frame(samples_con) 
+						contam_proportion_df=scale(contam_proportion_df, center=F, scale=colSums(contam_proportion_df))  #for each dup/OTU in controls, calc frequency
+							contam_proportion_vec =apply(contam_proportion_df, 1, max)  #take max of these frequencies.  this is the max proportional contribution of contamination to each of these OTUs/dups in the dataset. Accordingly, you will then subtract this proportion from each dup/OTU occurrence in the dataset.  A different (better?) way to do this would be to fit a likelihood distribution to the observed proportions of the dups/OTUs in the controls, and come up with the most likely proportion attributable to contamination.  But, in most cases, the most likely contribution is at or near zero (using a beta distrib), and in many cases the models don't converge anyway.
+					
+					#Step 1: remove the fraction of each OTU abundace attributable to contamination
+					DECONTAM = samples_env
+						for (i in 1:ncol(DECONTAM)){
+							nreads=sum(DECONTAM[,i])
+							contam_proportion_vec_forSample= ceiling(contam_proportion_vec*nreads)
+							DECONTAM[,i]= samples_env[,i]-contam_proportion_vec_forSample
+						}
+					DECONTAM[DECONTAM <0]<-0  #assign zero to any reads for which there are a negative (corrected) number of reads
+					DECONTAM = DECONTAM[rowSums(DECONTAM)>0,]  #remove reads that no longer occur in the data
+					
+					#Step 2: remove control taxon OTU from environmental samples in which it occurs
+				  DECONTAM <- DECONTAM[!(rownames(DECONTAM) %in% control_taxon),]
+					#remove any other OTU that predominantly occurs in control samples
+					tail(samples_con[order(rowSums(samples_con)),], 20)  #visualize
+			DECONTAM <- DECONTAM[!(rownames(DECONTAM) %in% row.names(tail(samples_con[order(rowSums(samples_con)),], 3))),] #here, 3 other OTUs... will differ by dataset
+			DECONTAM <- DECONTAM[!(rownames(DECONTAM) %in% names(which(rowSums(samples_con)>rowSums(samples_env)))),]
+	
+			
+	#auxiliary cleanup		
+	DECONTAM<-DECONTAM[,colSums(DECONTAM)>10000] #low abundance outlier
+	DECONTAM<-DECONTAM[,colSums(DECONTAM)<200000] #high abundance outlier
+  DECONTAM<-DECONTAM[,-grep("LL20170311B.2", colnames(DECONTAM), ignore.case=T)]#low-abundance outlier
+	DECONTAM <-DECONTAM[order(rowSums(DECONTAM), decreasing=T),]
+	DECONTAM <-DECONTAM[,order(colnames(DECONTAM))]
+	
+	READcount3<-sum(sum(DECONTAM))
+	  OTUcount3<-nrow(DECONTAM)
+
+#######################################################
+#Third decontamination: Outlier removal, for PCR replicates that are very different from their sister replicates
+#######################################################
+	replicates<-substr(colnames(DECONTAM),1,11)
+	distmat<-vegdist(t(DECONTAM))
+          distList=list(NA) ; distList.tri=list(NA); index=1
+          for (i in unique(replicates)){
+          	rowMatch<-which(replicates%in%i)
+          	distList[[index]]<-as.matrix(distmat)[rowMatch, rowMatch]
+          			distList.tri[[index]]<-	distList[[index]][upper.tri(	distList[[index]])]
+          	index=index+1
+          }
+
+normparams=fitdistr(unlist(distList.tri), "normal")$estimate  #fit normal distribution to bray-curtis dissimilarities. lognormal, beta, etc, had less-good fits.
+	probs=pnorm(unlist(distList.tri), normparams[1], normparams[2])
+	outliers =which(probs>0.95)
+	minOutlier<-min(unlist(distList.tri)[outliers]) #minimum outlier value
+
+      #remove outliers
+      distList<-distList[-which(lapply(distList, length)==1)] 	
+      namesOutliers=list(NA)
+      for (i in 1:length(distList)){
+      	namesOutliers[[i]]<-intersect(
+                                names(which(colSums(distList[[i]]>=minOutlier)>0)),
+                                names(which.max(rowMeans(distList[[i]])))
+                              )
+      }
+      DECONTAM<-DECONTAM[,-match(unlist(namesOutliers),colnames(DECONTAM))]
+        DECONTAM<-DECONTAM[rowSums(DECONTAM)>0,]
+
+        READcount4<-sum(sum(DECONTAM))
+        	  OTUcount4<-nrow(DECONTAM)
+
+#######################################################
+#######################################################
+	
+#######################################################
+##########LOAD Taxononmic Annotation Data  ############
+tax<-read.csv("masterTaxonomyTable_20171012.csv", header=T, row.names=1)
+    tax<-tax[order(tax$OTU_abundance, decreasing=T),]
+#######################################################
+#######################################################
+
+
+####Load tidal data from NOAA
+#got tidal data from https://tidesandcurrents.noaa.gov/noaatidepredictions.html
+NOAA<-read.table("NOAAtideData_UnionMarch2017.txt", skip=13, header=T)
+	NOAA$Time<-format(strptime(NOAA$Time, format="%H:%M"), "%H:%M")
+	NOAA$Date<-as.Date(NOAA$Date)
+	NOAA$DateTime<-as.POSIXct(strptime(paste(NOAA$Date, NOAA$Time, sep=" "), format="%Y-%m-%d %H:%M"))
+
+##########Rarefy OTU Data  ##############################
+#rarefy the data to make it a fair comparison between samples and replicates, etc.
+set.seed(49)
+rrOTUs<-
+	DECONTAM%>%
+	filter(rowSums(.)>0)%>%
+	select(-grep("Ostrich", colnames(.), ignore.case=T))%>%
+	t(.)%>%
+	rrarefy(.,min(rowSums(.)))%>%
+	t(.)
+row.names(rrOTUs)<-gsub(";size=","",row.names(DECONTAM))	
+	rrOTUs<-rrOTUs[rowSums(rrOTUs)>0,]
+	rrMeta<-allMeta[match(colnames(rrOTUs), allMeta$sample_name),]   #metadata for columns included in rrOTUs
+	row.names(rrOTUs)<-substr(row.names(rrOTUs),1,45) #truncate row.names to match those in the taxonomy database
+
+	
+  #prune taxonomic info to just OTUs present in rrOTUs
+	rrTax<-tax[match(row.names(rrOTUs), row.names(tax)),]
+#######################################################
+#######################################################	
+	
+#merge df w tidal information
+dataOUT$OTUname<-substr(dataOUT$OTUname, 1,45)    
+OTUprob<-dataOUT[dataOUT$OTUname%in%row.names(rrOTUs),]
+OTUprob<-data.frame(OTUprob, tax[match(OTUprob$OTUname, row.names(tax)),])
+  
+#create convenience variables
+      Bottles<-substr(colnames(rrOTUs), 1,11)
+      Sites<-substr(colnames(rrOTUs), 1,2)
+      SeqRuns<-rrMeta$run
+      Dates<-gsub("[A-Z]","", Bottles)
+      Tides<-rrMeta$Tide
+      Time<-format(strptime(rrMeta$time, format="%H:%M"), format="%H:%M")  #in hours (of a 24-hour clock)
+      Sal<-rrMeta$Salinity_refractometer
+      Temp<-as.numeric(rrMeta$Temperature)
+      dna<-rrMeta$Qubit_ngul
+      uniqueEvents <- expand.grid(c("LL.+", "PO.+", "TW.+"), c("11","12"), c("[ABC]", "[DEF]"))
+      	uniqueEvents<-apply(uniqueEvents[,c("Var1", "Var2", "Var3")], 1, paste, collapse="") #create a vector to grep for each unique sampling event
+          rrMeta$SamplingEvent<-NA #create col in metadata for sampling event ID
+          for (i in 1:length(uniqueEvents)){
+          	rrMeta $SamplingEvent[grep(uniqueEvents[i], colnames(rrOTUs))]<-LETTERS[i]
+          }
+      SamplingEvents<-rrMeta$SamplingEvent
+
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+	
+```
+
+
+#Introduction
+
+As environmental DNA (eDNA) becomes an increasingly important tool in ecological research [@sigsgaard2016population;@deiner2017environmental], it is critical to understand how techniques for eDNA collection and analysis perform under real-world conditions [@MEC:MEC13481]. In particular, we must characterize the spatial and temporal resolution of amplicon-sequencing studies in order to confidently identify ecological patterns in the field [@o2017spatial]; like any sampling technique, eDNA can reveal a phenomenon only where the effects of that phenomenon are sufficiently large to be detected above background variation (e.g., among replicates or time points).
+
+Most efforts to quantify the behavior of eDNA in the field have taken the form of quantitative PCR (qPCR) studies, in which the concentration of a particular template DNA is measured over space or time. Notable recent examples include documenting degradation of DNA over tens of meters in the flow of artificial streams [@jerde2016influence], caging trout and measuring eDNA concentration at intervals downstream [@jane2015distance], estimating eDNA production and degradation over time in a static environment [@sassoubre2016quantification], and estimating production and decay rates of eDNA from both caged and wild char in a field setting [@wilcox2016understanding], among others [e.g., @thomsen_detection_2012; @deiner_transport_2014-1]. Although the precise findings vary by setting and details of the molecular assay employed, even with highly sensitive qPCR, the distance from its source that eDNA can reliably be detected appears to be small, on the order of 10 -- 1000m.
+
+By contrast, less work has focused on the behavior of eDNA as reflected in ecological amplicon-sequencing studies. Port and colleagues showed that vertebrate eDNA communities can be distinguished at intervals of 60m [@MEC:MEC13481] in nearshore marine waters, and @o2017spatial suggested that a similar spatial scale (< 75m) pertains to a broader nearshore metazoan dataset. These were each single-time-point snapshots of animal species in dynamic environments, however, and especially in marine and aquatic environments in which spatial and temporal scales are linked by bulk transport of water, fine spatial resolution could be obliterated by water movement.
+
+Nearshore marine habitats are among the most physically dynamic and biologically diverse on earth [@helmuth2006living]. The movement of water associated with tide is a fundamental property of these environments [@Babson2006], dramatically shaping the life histories and ecology of organisms that live there. Environmental DNA surveys hold particular promise for better understanding thousands of species that may co-occur at a single nearshore marine location. However, use of this technique in the intertidal zone requires a practical knowledge of the effects of tide on the presence of eDNA sequences. Moreover, the intertidal environment provides rigorous testing grounds in which to discern the origins of genetic material detected in eDNA surveys, more generally. 
+
+Given recent work suggesting that eDNA signals are predominantly highly localized in space and time [@thomsen2015environmental, and references therein] -- although in some circumstances, eDNA may travel some distance [@deiner_transport_2014-1] -- we asked whether marine eDNA community composition changes over tidal cycles at a given location. A scenario in which eDNA communities change in unpredictable ways with each new tide would suggest an exogeneous origin for that DNA, such that DNA arrives at a site with incoming tides, drawn from a pool of organisms existing elsewhere. By contrast, consistent eDNA communities over multiple tidal cycles would strongly suggest an endogenous origin and highly localized signal.
+
+Here, we find that nearshore COI eDNA community composition is not strongly influenced by tide, and instead remains largely consistent within each geographic location across multiple successive tides. However, where shifts in the physical and chemical aqueous environment occur, the eDNA community appears to change accordingly. It therefore seems likely that changes in aqueous habitat characteristics -- not tide itself -- yield changes in eukaryotic eDNA communities.
+
+#Methods
+
+##Field Sampling
+
+```{r FIG1_sitemap, fig.width=3, fig.height=3, fig.path='figures/', echo=F, fig.cap="\\label{fig:fig1}Nearshore sampling locations in Hood Canal, Washington, USA."}
+
+lats<-c(47.462,47.377,47.378)
+longs<-c(-123.113,-123.150,-122.973)
+sitenames<-c("Lilliwaup","Potlatch","Twanoh")
+
+### Get a map
+map <- get_map(location = c(lon = mean(longs), lat = mean(lats)), zoom = 10,
+               maptype = "terrain", source = "google")
+plotmap<-ggmap(map)
+
+plotmap + 
+	geom_point(data=data.frame(lats,longs), aes(x=longs, y=lats), color="red", size=2) +
+	geom_text(data=data.frame(lats,longs, sitenames), x=longs, y=lats-0.02, label=sitenames, fontface = "bold", size=2) +
+	ggtitle("Sampling Locations" , subtitle="Hood Canal, Washington, USA") +
+	theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+	xlab("Longitude")+
+	ylab("Latitude")
+
+
+```
+
+Our study design aimed to distinguish the effects of tide from site-level community differences and from sampling error. Consequently, we sampled each of three geographic locations (Fig 1; GPS coordinates given in Suppl. Table 1) in Hood Canal, Washington, USA, four times -- twice during an incoming tide, and twice during an outgoing tide -- over a ca. 28-hour period. Despite its name, the Hood Canal is in fact a natural glacial fjord. We collected three 1-L water samples for eDNA analysis (ca. 10m apart) at each site during each sampling event. No permits were required for collecting water samples, given the inherently public nature of saltwater in the United States. Each sample was collected at the surface (< 1m depth), using a ca. 3m-long pole with plastic collection bottle attached. We kept samples on ice until they could be processed, which occurred within hours of collection. We filtered 500mL from each sample onto cellulose acetate filters (47mm diameter; 0.45um pore size) under vacuum pressure, and preserved the filter at room temperature in Longmire's buffer following Renshaw et al. [-@renshaw2015room]. Deionized water served as a negative control for filtering. We measured water temperature and salinity with a hand-held multiprobe (Hanna Instruments, Inc., model HI-9828), as well as measuring salinity with a handheld manual refractometer; the latter instrument more reliably reflected lab calibrations, and we use these measurements here.
+
+  
+```{r Table1_sampling_table, echo=F}
+#xtabs(~Sites+Tides)
+f<-as.data.frame(table(Bottles, Sites, paste(Tides, "Tide")))
+  f$Sites<-gsub("LL", "Lilliwaup", f$Sites)
+  f$Sites<-gsub("PO", "Potlatch", f$Sites)
+  f$Sites<-gsub("TW", "Twanoh", f$Sites)
+  f$Freq[f$Freq>0]<-1  #convert to unique bottles of water sampled, rather than PCR replicates sequenced
+
+  #print(xtable(xtabs(f$Freq~f$Sites+f$Tides)), comment=F)
+
+  kable(xtabs(f$Freq~f$Sites+f$Var3), style="latex", align="c", caption="Samples by site and tide, showing balanced sampling design. Each site (N = 3) had a total of 4 sampling events (time points), consisting of 3 water samples per event, and then 3-4 PCR replicates per water sample, such that we sequenced 36-44 individual PCR replicates per geographic sampling site. 35 of 36 samples were successfully processed, with 93 individual replicates survived quality-control, described below.")
+```
+
+
+##DNA Extraction, Amplification, and Sequencing
+
+We extracted total DNA from the filters using a phenol:chloroform:isoamyl alcohol protocol following [@renshaw2015room], resuspended the eluate in 200uL water, and used 1uL of diluted DNA extract (1:10) as template for PCR. Although a single locus cannot completely characterize the biodiversity at a particular location [see, e.g., @kelly2017multilocus], we used a 330bp fragment of COI to assess the eukaryotic variance among our samples. This primer set [@leray_new_2013] amplifies a broad array of taxa including representative diatoms, dinoflagellates, metazoans, fungi, and others; here, we simply use this primer set as an assay to characterize community similarity among samples. We followed a two-step PCR protocol to first amplify and then index our samples for sequencing, such that we could sequence many samples on the same sequencing run while avoiding amplification bias due to index sequence [@o2016indexed].  PCR mixes were 1X HotStar Buffer, 2.5mM \(MgCl_2\), 0.5mM dNTP, 0.3\(\mu\)M of each primer and include 0.5 units of HotStar Taq (Qiagen Corp.) per 20 \(\mu\)L reaction. The first round of PCR consisted of 40 cycles, including an annealing touchdown from 62\(^\circ\)C to 46\(^\circ\)C (-1\(^\circ\)C per cycle), followed by 25 cycles at 46\(^\circ\)C. The indexing PCR used a similar protocol with only 10 cycles at 46\(^\circ\)C.
+
+We generated three PCR replicates for each of 35 water samples (3 samples per sampling event, 4 sampling events per site, 3 sites = 36 water samples, of which 35 were processed successfully), and sequenced each replicate individually in order to assess the variance in detected eDNA communities due to stochasticity during amplification. We simultaneously sequenced positive (Ostrich (*Struthio camelus*) tissue, selected because of the absence of this species in our study sites) controls with identical replication. We carried negative controls through amplification, but did not sequence them, due to the practical and theoretical issues associated with library preparation in samples without any discernable amplicon. No amplification was visible via gel elecrophoresis in the negative controls, and fluorometry (Qubit; Thermo Scientific) analysis showed negligible amounts of DNA present in those samples after amplification. The positive controls provided us with consistent estimates of cross-contamination (see below), which we used in sequence quality-control prior to analysis.
+
+Following library preparation according to manufacturers’ protocols (KAPA Biosystems, Wilmington, MA, USA; NEXTflex DNA barcodes, BIOO Scientific, Austin, TX, USA), sequencing was carried out on an Illumina MiSeq (250bp, paired-end) platform in two different batches: a MiSeq V.2 run and a MiSeq nano run.  These were processed separately through the first stages of bioinformatics analysis (see below), and then combined after primer removal for dereplication. PCR replicates (derived from the same sampled bottle of water) sequenced on different runs clustered together without exception (see Results), and thus combining the data from two sequencing runs was appropriate.
+
+##Bioinformatics
+
+We processed the resulting sequence reads with a custom Unix-based script [@banzai], which calls third-party programs [@mahe2015swarm;@martin2011cutadapt;@zhang2014pear] to move from raw sequence data to a quality-controlled dataset of counts of sequences from operational taxonomic units (OTUs). A total of `r READcount1` reads survived preliminary quality-control in the bioinformatics pipeline, representing `r OTUcount1` OTUs, most of which were rare (< 5 reads). We controlled for contamination in three ways, following our approach in [@kelly2017multilocus]. First, to address the question of whether rare OTUs are a function of low-level contamination or are true reflections of less-common amplicons, we used a site-occupancy model to estimate the probability of OTU occurrence [@royle2006generalized;@lahoz2015statistical], using multiple PCR replicates of each environmental sample as independent draws from a common binomial distribution. We eliminated from the dataset any OTU with <80% estimated probability of occurrence (a break point in the observed distribution of occupancy probabilities), yielding a dataset of `r READcount2` reads (`r OTUcount2` OTUs). Second, we estimated (and then minimized) the effect of potential cross-contamination among samples -- likely due to tag-jumping [@schnell2015tag] or similar effects -- as follows: (1) we calculated the maximum proportional representation of each OTU across all control (here, ostrich) samples, considering these to be estimates of the proportional contribution of contamination to each OTU recovered from the field samples. (2) We then subtracted this proportion from the respective OTU in the field samples, yielding `r READcount3` reads (`r OTUcount3` OTUs). Finally, we dropped samples that had highly dissimilar PCR replicates (Bray-Curtis dissimilarities > `r round(minOutlier,2)`, which were outside of the 95% confidence interval given the best-fit model of the observed among-replicate dissimilarities). The result was a dataset of `r READcount4` reads (`r OTUcount4` OTUs), or `r (READcount4/READcount1)*100`% of the post-pipeline reads. We rarefied read counts from each PCR replicate to allow for comparison across water samples using the vegan package for R [@vegan], such that each sample consisted of $1.85 \times 10^4$ reads from `r nrow(rrOTUs)` OTUs. We carried out subsequent analyses on a single, illustrative rarefaction draw; rarefaction draws did not vary substantially (Supplemental Figure 1). 
+
+All bioinformatics and other analytical code is included as part of this manuscript, including OTU tables and full annotation data, and these provide the details of parameter settings in the bioinformatics pipeline. In addition, sequence data are deposited and publicly available in GenBank (Upon Acceptance).
+
+
+##Statistical Analysis
+###Apportioning Variance in Bray-Curtis Dissimilarity Among Sites, Sampling Events, Bottle Samples, and PCR Replicates
+We calculated the variance in OTU communities at five hierarchical levels -- between tides (incoming vs. outgoing), among geographic sites (N = 3), among sampling events within geographic sites (N = 4 per site), among sample bottles within a sampling event (N = 3 per event per site), and among PCR replicates (N = 3 per individual sample bottle; reflected by the model residuals) -- using a PERMANOVA test on Bray-Curtis (OTU count data) dissimilarity among sequenced replicates. Calculations were carried out in R ver.  3.3.1 [@RcoreTeam] using the vegan [@vegan] package. Having established that the variance among PCR replicates and bottles was small relative to variance among sampling events and geographic sites (see Results), it was clear that our dataset had the necessary resolution to detect community-level changes -- if any -- associated with changes in tide.
+
+###How Many Ecological Communities Are Present?
+
+We then used Bray-Curtis dissimilarity to visualize differences among sampled communities at each hierarchical level of organization, using ordination  [NMDS, @MASS], treemaps [@treemapify; @ggplot], and a heatmap. Given the strong and consistent differentiation we identified between two ecological communities in the eDNA data (see Results), we then labeled these communities 1 and 2, and applied a set of standard statistics to test for associations between community identity and geographic site (Fisher's exact test), tidal direction (incoming vs. outgoing; \(\chi^2\)), and tidal height (logistic regression).
+
+###Community Identity by Site and Tide
+
+We recovered tidal height data for our study sites during the relevant dates from the National Oceanographic and Atmospheric Administration data for Union, Washington (available at: https:// tidesandcurrents.noaa.gov/ noaatidepredictions.html).
+
+###Characterizing the Observed Ecological Communities
+
+A single genetic locus provides only a biased and incomplete view of an ecosystem (see @kelly2017multilocus for discussion), and although our purpose was to test for the effect of tidal fluctuations on detected eDNA communities -- which does not require taxonomic annotation of the recovered OTUs -- we were nevertheless interested in the membership of the ecological communities we detected. Our locus of choice, COI, provided a broad view of ecosystem with 23 phyla in 8 kingdoms represented (see Supplemental Table 2 for summary table). Algae dominated the read counts, with approximately 91% of annotated reads mapped to taxa in the groups Chlorophyta and Phaeophyceae. <!-- Note: I can't put these calculations here, because they occur lower down in the script, but for the record, see: rowSums(PhylumCounts)/sum(sum(PhylumCounts)) --> 
+
+We assigned taxonomy to each OTU sequence using blastn [@camacho2009blast] on a local version of the full NCBI nucleotide database (current as of August 2017), recovering up to 100 hits per query sequence with at least 80% similarity and maximum e-values of $10^{-25}$ (culling limit = 5), and reconciling conflicts among matches using the last common ancestor approach implemented in MEGAN 6.4 [@huson2016megan]. `r 100*(sum(!is.na(rrTax$OTU_taxon_MEGAN))/nrow(rrOTUs))`% of rarefied OTUs could be annotated at some taxonomic level, with over half (`r 100*(sum(!is.na(rrTax$OTU_taxon_family))/nrow(rrOTUs))`%) being annotated to the level of taxonomic Family or lower.
+
+We report an index of community-wide changes across sampling events using the top 10 most-common taxonomic Families in the dataset. We carried out a finer-grained analysis to identify the OTUs driving the observed community shifts at Twanoh by first using a cannonical correspondence analysis [CCA; @vegan], constrained by community identity (1 vs. 2, identified via NMDS; see Results), then filtering the CCA scores by read count, such that we plotted only OTUs that strongly differentiated communities and that occurred at least 1000 times in the dataset. We then show these by Family-level taxonomic annotation.
+
+#Results  
+
+##Community-Level similarity among replicates, sites, etc: Apportioning variance in Bray-Curtis Dissimilarity
+
+```{r create_distance_matrix, echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, results='hide'}
+
+##Create distance matrices. Counts will use Bray-Curtis
+
+OTU.count.distance<-as.matrix(vegdist(t(rrOTUs), method="bray", diag=F, upper=F, binary=F))
+
+FamilyCounts<-  
+  aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_family[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
+  Col2RN(1)
+
+OrderCounts<-  
+  aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_order[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
+  Col2RN(1)
+
+ClassCounts<-  
+  aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_class[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
+  Col2RN(1)
+
+PhylumCounts<-  
+  aggregate.data.frame(rrOTUs, list(tax$OTU_taxon_phylum[match(row.names(rrOTUs), row.names(tax))]), FUN=sum) %>%
+  Col2RN(1)
+
+Family.count.distance<-
+  FamilyCounts%>%
+  t()%>%
+  vegdist(method="bray")%>%
+  as.matrix()
+
+#apportioning variance: OTU counts
+invisible(
+  OTU.count.adonis<-adonis(OTU.count.distance~rrMeta$Tide+rrMeta$Site.x+rrMeta$SamplingEvent+rrMeta$original_sample)$aov.tab
+)
+
+#Site-specific Tide analysis
+OTU.count.by.site<-split.data.frame(OTU.count.distance, rrMeta$Site.y)
+  LL<-OTU.count.by.site$Lilliwaup[, grep("LL", colnames(OTU.count.by.site$Lilliwaup))]
+  PO<-OTU.count.by.site$Potlatch[, grep("PO", colnames(OTU.count.by.site$Potlatch))]
+  TW<-OTU.count.by.site$Twanoh[, grep("TW", colnames(OTU.count.by.site$Twanoh))]
+
+invisible(
+LL.OTU.count.adonis<-adonis(LL~rrMeta$Tide[rrMeta$Site.y=="Lilliwaup"]+rrMeta$SamplingEvent[rrMeta$Site.y=="Lilliwaup"]+rrMeta$original_sample[rrMeta$Site.y=="Lilliwaup"])
+)
+invisible(
+PO.OTU.count.adonis<-  adonis(PO~rrMeta$Tide[rrMeta$Site.y=="Potlatch"]+rrMeta$SamplingEvent[rrMeta$Site.y=="Potlatch"]+rrMeta$original_sample[rrMeta$Site.y=="Potlatch"])
+)
+invisible(
+TW.OTU.count.adonis<-  adonis(TW~rrMeta$Tide[rrMeta$Site.y=="Twanoh"]+rrMeta$SamplingEvent[rrMeta$Site.y=="Twanoh"]+rrMeta$original_sample[rrMeta$Site.y=="Twanoh"])
+)
+
+
+##NMDS
+	nmds.OTU.count<-metaMDS(OTU.count.distance, diag=T, upper.tri=T, trymax=1000, trace=0)
+	NMDS.RESULTS<-data.frame(
+	  OTU.count=scores(nmds.OTU.count),
+	  Sample=row.names(scores(nmds.OTU.count)),
+	  Bottles, SamplingEvents, Sites, SeqRuns, Dates, Tides, Sal, Temp
+	  )
+```	
+
+To evaluate the spatial and temporal turnover between eDNA communities, we first apportioned the observed variation in COI Bray-Curtis dissimilarities (calculated using OTU read counts) among tides (incoming vs. outgoing), sampling sites, sampling events within a site, biological replicates (individual bottles of water taken during the same sampling event), and technical replicates (PCR replicates from the same bottle of water). Across the whole dataset, ecological communities at different sampling sites (20-50km apart) account for the largest fraction of the variance (`r round(OTU.count.adonis$R2[2],2)`; Figure 2), and different sampling events within those sites account for the next highest proportion (`r round(OTU.count.adonis$R2[3],2)`). In contrast, biological replicates (N = 3 bottles of water per sampling event, taken ca. 10m apart) account for a small fraction (`r round(OTU.count.adonis$R2[4],2)`) of the variance, with differences among tides accounting for the smallest fraction of the variance in community dissimilarity (`r round(OTU.count.adonis$R2[1],2)`). The remainder -- `r round(OTU.count.adonis$R2[5],2)` -- is largely due to differences among technical PCR replicates (N = 3 per bottle of water), much of which derives from stochasticity in the presence of rare OTUs (Supplemental Figure 1). The comparitively low variance issuing from biological and technical replicates relative to sampling events and sites affords the resolution necessary to further examine questions of community composition across space and time. 
+
+
+```{r FIG2_ADONIS_TreemapDiagrams, fig.width=6, fig.height=6, fig.path='figures/', echo=F, fig.cap="\\label{fig:AdonisFigure}Results of PERMANOVA, apportioning variance by hierarchical levels of sampling design: Tide (incoming vs. outgoing), Sampling Site, Sampling Event (N = 4 time points per site), and Sampling Bottle (N = 3 bottles per sampling event). Residuals reflect variance among PCR replicates (N = 3 replicates per sampling bottle) as well as variation due to rarefaction stochasticity and other sampling effects. The upper panel reflects results for the dataset as a whole, with lower panels giving site-specific variances. Numbers reflect proportion of the variance explained by the indicated hierarchical level (R$^2$), with permutation-derived p-values in parentheses."}
+
+      q<-as.data.frame(OTU.count.adonis)
+        row.names(q)<-c("Tide", "Site", "SamplingEvent", "Bottle", "Residuals", "Total")
+        q<-data.frame(row.names(q), q)
+        names(q)[1]<-"Level"
+        q<-q[-which(row.names(q)=="Total"),]
+        q$Level<-paste(q$Level, "\n",
+                       round(q$R2,2), " (", q$Pr..F., ")", 
+                       sep="")
+  
+q0.plot<-ggplot(q, aes(area = R2, label=Level))+
+  geom_treemap(fill=brewer.pal(6, "Blues")[2:6], color=1, alpha=.8)+
+  geom_treemap_text(colour = "black", place = "centre", grow = FALSE, size=10)+
+  ggtitle("All Sites")+
+  theme(aspect.ratio=1/1.618, plot.margin = margin(2, 2, -2, 2, "pt"), plot.background = element_blank())
+  
+
+
+       q1<-as.data.frame(LL.OTU.count.adonis$aov.tab)
+         row.names(q1)<-c("Tide", "SamplingEvent", "Bottle", "Residuals", "Total")
+           q1<-cbind(paste(row.names(q1), "\n",round(q1$R2,2)," (", q1[,6], ")", sep=""), 
+                        q1)
+         names(q1)[1]<-"Level"
+         q1<-q1[-5,]
+   
+
+q1.plot<-ggplot(q1, aes(area = R2, label=Level))+
+  geom_treemap(fill=brewer.pal(6, "Blues")[c(2,4:6)], color=1, alpha=.8)+
+  geom_treemap_text(colour = "black", place = "centre", grow = FALSE, size=5)+
+  ggtitle("Lilliwaup")+
+  theme(aspect.ratio=1/1.618)
+         
+
+       q2<-as.data.frame(PO.OTU.count.adonis$aov.tab)
+         row.names(q2)<-c("Tide", "SamplingEvent", "Bottle", "Residuals", "Total")
+           q2<-cbind(paste(row.names(q2), "\n",round(q2$R2,2)," (", q2[,6], ")", sep=""), 
+                        q2)
+         names(q2)[1]<-"Level"
+         q2<-q2[-5,]
+
+q2.plot<-ggplot(q2, aes(area = R2, label=Level))+
+  geom_treemap(fill=brewer.pal(6, "Blues")[c(2,4:6)], color=1, alpha=.8)+
+  geom_treemap_text(colour = "black", place = "centre", grow = FALSE, size=5)+
+  ggtitle("Potlatch")+
+  theme(aspect.ratio=1/1.618)
+         
+         
+         q3<-as.data.frame(TW.OTU.count.adonis$aov.tab)
+           row.names(q3)<-c("Tide", "SamplingEvent", "Bottle", "Residuals", "Total")
+             q3<-cbind(paste(row.names(q3), "\n",round(q3$R2,2)," (", q3[,6], ")", sep=""), 
+                          q3)
+           names(q3)[1]<-"Level"
+           q3<-q3[-5,]
+
+ q3.plot<-ggplot(q3, aes(area = R2, label=Level))+
+  geom_treemap(fill=brewer.pal(6, "Blues")[c(2,4:6)], color=1, alpha=.8)+
+  geom_treemap_text(colour = "black", place = "centre", grow = FALSE, size=5)+
+  ggtitle("Twanoh")+
+  theme(aspect.ratio=1/1.618)
+          
+
+ #do the actual plotting           
+ multiplot(q0.plot, q1.plot, q2.plot, q3.plot,
+           layout=matrix(c(1,2,1,3,1,4), nrow=2, ncol=3))     
+
+  
+```
+
+To examine the effect of tide at each of our three geographic locations independently, we again apportioned variance among sampling event, tide, sampling bottles (biological replicates), and PCR replicate (residuals; Figure 2). Analyzing individual site-level data in this way eliminates the portion of variance due to between-site differences, effectively amplifying the contributions of the remaining hierarchical sampling levels, including tide. Because we treat tidal direction (incoming vs. outgoing) as the highest hierarchical level, we are effectively asking whether eDNA assays reflect a coherent "incoming" tidal community and a coherent "outoging" tidal community across all sites. For each of our three sampling locations, variation among sampling events remains greater than variation between incoming and outgoing tides (Figure 2b), with little evidence of consistent incoming or outgoing tidal communities. 
+
+```{r FIG3_BrayCurtis_timeSeries, fig.width=4, fig.height=5, fig.path='figures/', echo=F, warning=F, message=F, fig.cap="\\label{fig:TimeSeriesFigure}Comparison of Bray-Curtis dissimilarities within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually. Steps with significant increases (Kruskal; p $<$ 0.01) marked with asterisks and discussed in the text. Y-axes identical to facilitate comparison across sites."}
+#bray-curtis timeseries, within sites
+  
+LL.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Lilliwaup"]; diag(LL)<-NA
+
+      BClist<-list()
+      for (i in 1:4){
+        BClist[[i]]<-LL[1:4,which(LL.sampling==unique(LL.sampling)[i])]
+      }
+      LL.event1<-lapply(BClist, as.vector)
+      
+      LL.event1<-data.frame(value=unlist(LL.event1),
+                 timestep=c(rep(0, times=length(LL.event1[[1]])),
+                               rep(1, times=length(LL.event1[[2]])),
+                               rep(2, times=length(LL.event1[[3]])),
+                              rep(3, times=length(LL.event1[[4]]))
+                            ),
+                 eventReferenceNumber=rep(1, times=length(unlist(LL.event1)))
+                 )
+      LL.event1<-LL.event1[!is.na(LL.event1$value),]
+
+LL.plot<-ggplot(data= LL.event1, 
+       aes(y=value, x=factor(timestep)))+
+        geom_boxplot(fill="dodgerblue2", alpha=0.5)+
+        ggtitle("Lilliwaup")+
+        #scale_x_discrete(rrMeta$Tide[rrMeta$Site.x=="Lilliwaup"], breaks=c(0,1,2,3), labels=c("Incoming", "Outgoing", "Outgoing", "Incoming"))+
+        xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
+        annotate('text', x=4, y = 0.6, label="*", size=12)+
+        theme(aspect.ratio = 0.3)
+        
+
+#TODO -- add secondary x-axis to reflect time-since-reference, and a tertiary axis to reflect tidal direction
+
+################
+#POTLATCH
+
+PO.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Potlatch"]; diag(PO)<-NA
+
+BClist<-list()
+for (i in 1:4){
+  BClist[[i]]<-PO[1:4,which(PO.sampling==unique(PO.sampling)[i])]
+}
+PO.event1<-lapply(BClist, as.vector)
+
+          PO.event1<-data.frame(value=unlist(PO.event1),
+                                timestep=c(rep(0, times=length(PO.event1[[1]])),
+                                           rep(1, times=length(PO.event1[[2]])),
+                                           rep(2, times=length(PO.event1[[3]])),
+                                           rep(3, times=length(PO.event1[[4]]))
+                                ),
+                                eventReferenceNumber=rep(1, times=length(unlist(PO.event1)))
+          )
+          PO.event1<-PO.event1[!is.na(PO.event1$value),]
+
+PO.plot<-ggplot(data= PO.event1, 
+                aes(y=value, x=factor(timestep)))+
+  geom_boxplot(fill="dodgerblue2", alpha=0.5)+
+  ggtitle("Potlatch")+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
+  theme(aspect.ratio = 0.3)
+
+##########
+###TWANOH
+TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]
+diag(TW)<-NA
+TW.sampling<-rrMeta$SamplingEvent[rrMeta$Site.x=="Twanoh"]; diag(TW)<-NA
+
+BClist<-list()
+for (i in 1:4){
+  BClist[[i]]<-TW[1:4,which(TW.sampling==unique(TW.sampling)[i])]
+}
+TW.event1<-lapply(BClist, as.vector)
+
+        TW.event1<-data.frame(value=unlist(TW.event1),
+                              timestep=c(rep(0, times=length(TW.event1[[1]])),
+                                         rep(1, times=length(TW.event1[[2]])),
+                                         rep(2, times=length(TW.event1[[3]])),
+                                         rep(3, times=length(TW.event1[[4]]))
+                              ),
+                              eventReferenceNumber=rep(1, times=length(unlist(TW.event1)))
+        )
+        TW.event1<-TW.event1[!is.na(TW.event1$value),]
+
+TW.plot<-ggplot(data= TW.event1, 
+                aes(y=value, x=factor(timestep)))+
+  geom_boxplot(fill="dodgerblue2", alpha=0.5)+
+  ggtitle("Twanoh")+
+  xlab("Time Step") + ylab("Bray-Curtis")+ylim(0,1)+theme_bw()+
+  annotate('text', x=3, y = 0.8, label="*", size=12)+
+  theme(aspect.ratio = 0.3)
+
+
+
+#####Multiplot
+multiplot(LL.plot, PO.plot, TW.plot)
+
+```
+
+```{r regressions_salinity_time}
+
+    LLdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("LL", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+    LLsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("LL", rrMeta$original_sample)]))
+    LLtimemat<-c(dist(rrMeta$DateTime[grepl("LL", rrMeta$original_sample)]))
+
+LLmeans<-
+  data.frame(LLdistmat[lower.tri(LLdistmat)], LLsaldist, LLtimemat)%>%
+  group_by(LLsaldist, LLtimemat)%>%
+  summarize(mean(LLdistmat.lower.tri.LLdistmat..))%>%
+  as.data.frame()
+  names(LLmeans)[3]<-"BCdistance"
+    LL.lm<-lm(LLmeans[,3]~LLmeans[,1]+LLmeans[,2])  #salinity is important; time is not
+    LL.lm.sal<-lm(LLmeans[,3]~LLmeans[,1])
+   
+    
+      LL.salPlot<-ggplot(LLmeans, aes(x=LLsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("")+ggtitle("Lilliwaup")+annotate("text", x = 2, y = 0.4, label = lm_eqn(LL.lm.sal), colour="black", size = 3, parse=TRUE)
+
+      
+      
+    POdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("PO", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+    POsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("PO", rrMeta$original_sample)]))
+    POtimemat<-c(dist(rrMeta$DateTime[grepl("PO", rrMeta$original_sample)]))
+    
+POmeans<-
+  data.frame(POdistmat[lower.tri(POdistmat)], POsaldist, POtimemat)%>%
+  group_by(POsaldist, POtimemat)%>%
+  summarize(mean(POdistmat.lower.tri.POdistmat..))%>%
+  as.data.frame()
+  names(POmeans)[3]<-"BCdistance"
+      PO.lm<-lm(POmeans[,3]~POmeans[,1]+POmeans[,2])
+      PO.lm.sal<-lm(POmeans[,3]~POmeans[,1])
+    PO.salPlot<-ggplot(POmeans, aes(x=POsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("Mean Bray-Curtis Dissimilarity")+ggtitle("Potlatch")+annotate("text", x = 2, y = 0.36, label = lm_eqn(PO.lm.sal), colour="black", size = 3, parse=TRUE)+theme(axis.title.y=element_text(size=6))
+     
+     
+      TWdistmat<-as.matrix(vegdist(t(rrOTUs[,grepl("TW", colnames(rrOTUs))]), method="bray", diag=F, upper=F, binary=F))
+      TWsaldist<-c(dist(rrMeta$Salinity_refractometer[grepl("TW", rrMeta$original_sample)]))
+      TWtimemat<-c(dist(rrMeta$DateTime[grepl("TW", rrMeta$original_sample)]))
+      
+TWmeans<-
+  data.frame(TWdistmat[lower.tri(TWdistmat)], TWsaldist, TWtimemat)%>%
+  group_by(TWsaldist, TWtimemat)%>%
+  summarize(mean(TWdistmat.lower.tri.TWdistmat..))%>%
+  as.data.frame
+  names(TWmeans)[3]<-"BCdistance"
+      TW.lm<-lm(TWmeans[,3]~TWmeans[,1]+TWmeans[,2])  #salinity is important; time is not
+      TW.lm.sal<-lm(TWmeans[,3]~TWmeans[,1])
+      TW.salPlot<-ggplot(TWmeans, aes(x=TWsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("")+ggtitle("Twanoh")+annotate("text", x = 2, y = 0.9, label = lm_eqn(TW.lm.sal), colour="black", size = 3, parse=TRUE)
+
+```
+
+
+We next tested the possibility that eDNA sequences might still regularly shift in association with tide, even if not between two predicable assemblages (see above). Conceiving of tidal turnovers within a site as a series of events that could each influence community composition, we treated our first sampling event at a site as the reference point for that site, and assessed the Bray-Curtis dissimilarity of eDNA sequences with each subsequent sampling event occurring at a later point in time and after one or more changes in tide (Figure 3). If ecological communities within each site remain consistent over time, we expect the Bray-Curtis values of the community at time zero (the reference community) vs. time one (the subsequent sampling event) to be identical to the dissimilarity values among bottles taken within the same sampling event. We observe little change in community dissimilarity as a function of tidal change (or indeed of time). 
+
+In all three sites, Bray-Curtis values remain stable across multiple tide changes, with no continuously increasing trend over time. Instead, two events stand out as statistically significant (Kruskal-Wallis, p < 0.01): a moderate increase at Lilliwaup at time step 3 (ca. 26 hours after the reference sample, from median `r round(median(LL.event1[LL.event1[,2]==1,1]), 2)` to `r round(median(LL.event1[LL.event1[,2]==1,3]), 2)`), and a far larger jump in a single time point at Twanoh (ca. 19 hours after reference; from `r round(median(TW.event1[TW.event1[,2]==1,1]), 2)` to `r round(median(TW.event1[TW.event1[,2]==2,1]), 2)`, before returning to its reference value in the subsequent sampling event). In each of these events, a change in salinity of the sampled water is significantly associated with the change in ecological community, while time-since-reference is not (linear models; Lilliwaup t-value Salinity = `r round(summary(LL.lm)$coeff[8],2)` and Time-since-reference = `r round(summary(LL.lm)$coeff[9],2)`; Twanoh t-value Salinity = `r round(summary(TW.lm)$coeff[8],2)` and Time-since-reference = `r round(summary(TW.lm)$coeff[9],2)`; note that time-since-reference necessarily encompasses tidal changes in our sampling scheme; See Supplemental Figure 3 for site-level regressions with between Bray-Curtis dissimilarities and changes in salinity).
+
+In sum, neither tidal direction (incoming vs. outgoing) nor individual tidal events therefore consistently drive differences in sampled eDNA communities, but as described below, individual environmental changes in such as those seen in the Twanoh changeover event bear further scrutiny. 
+
+##How Many Ecological Communities Are Present?
+
+```{r merge_cofactor_data, echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
+#Label communities 1 (most of the samples) and 2 (Twanoh at two sampling events)
+
+rrMeta$Community<-1
+  rrMeta$Community[grep("TW20170311",rrMeta$sample_name)]<-2
+  rrMeta$Community[grep("TW20170312[DEF]",rrMeta$sample_name)]<-2
+  rrMeta$Community<-as.factor(rrMeta$Community)
+  
+  NOAA<-merge(
+  rrMeta[,c("sample_name", "DateTime", "Community", "Salinity_refractometer", "Temperature", "Qubit_ngul")],
+  NOAA, all=T)
+
+ NOAA2<-NOAA[,-3]; names(NOAA2)[2]<-"bottle" ; NOAA2<-NOAA2[!is.na(NOAA2$bottle),];  NOAA2$bottle<-substr(NOAA2$bottle, 1, 11); NOAA2<-unique(NOAA2)
+   OTUprob<-join(OTUprob, NOAA2, by="bottle", type="left")
+   OTUprob$site<-substr(OTUprob$bottle, 1,2)
+
+```
+
+
+```{r FIG4_multiplot_NMDS_BottleTide, fig.width=4, fig.height=6, fig.path='figures/',  echo=F, fig.cap="\\label{fig:fig4}(A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Bray-Curtis dissimilarities among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). Polygons connect communities sequenced from replicate PCR reactions of the same sampled bottle of water. (B) The same data shown as a heatmap, ordered by site identity. Only the Twanoh samples (upper right) stand out as having substantial heterogeneity, reflecting the two different communities present during different sampling events at that site. Site labels: TW = Twanoh, PO = Potlatch, LL = Lilliwaup."}     	
+fig3a<-      ggplot() + 
+      geom_polygon(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,fill=Tides,group=Bottles), alpha=0.3) +
+      geom_text(data= NMDS.RESULTS,aes(x=OTU.count.NMDS1,y=OTU.count.NMDS2,label=Sites),alpha=0.4,size=2)+
+      scale_fill_manual(values = (c("navy", "skyblue"))) +
+      coord_equal() +
+      theme_bw() +
+      xlab("NMDS1") + ylab("NMDS2") +
+      annotate("text", x=0.9*max(NMDS.RESULTS$OTU.count.NMDS1), y=0.9*max(NMDS.RESULTS$OTU.count.NMDS2),label="A")+
+      theme(axis.text.x = element_blank(),  # remove x-axis text
+            axis.text.y = element_blank(), # remove y-axis text
+            axis.ticks = element_blank(),  # remove axis ticks
+            axis.title.x = element_text(size=12), # remove x-axis labels
+            axis.title.y = element_text(size=12), # remove y-axis labels
+            panel.background = element_blank(), 
+            panel.grid.major = element_blank(),  #remove major-grid labels
+            panel.grid.minor = element_blank(),  #remove minor-grid labels
+            plot.background = element_blank(), 
+            legend.position = "right",
+            plot.title = element_text(hjust = 0.5),
+            plot.margin = margin(0,0,20,0, unit="pt"),
+            aspect.ratio = 1
+            ) +
+      ggtitle("Bray-Curtis Dissimilarity\nby Sampling Bottle and by Tide")
+
+      distmat<-as.matrix(vegdist(t(rrOTUs[,]), method="bray", diag=F, upper=F, binary=F))
+      distmat<-melt(distmat)
+
+    fig3b<-ggplot(distmat, aes(Var1, Var2, fill=as.numeric(value)))+
+          geom_tile()+
+          xlab("Sample")+ylab("Sample")+
+          annotate("text", x=83.7, y=83.7,label="B", color="white")+
+          guides(fill=guide_legend("Bray-Curtis\nDissimilarity"))+
+          scale_x_discrete(labels=substr(unique(distmat$Var1),1,2))+
+          scale_y_discrete(labels=substr(unique(distmat$Var1),1,2))+
+          theme(axis.text.x = element_text(angle=90, size=4),
+            axis.text.y = element_text(size=4),
+            panel.background = element_blank(),
+            plot.background = element_blank(),
+            aspect.ratio = 1
+            )
+  
+  #heatmap(distmat, symm=T, labRow = Sites, labCol=Sites) #labRow=rrMeta$run, labCol=rrMeta$run
+
+multiplot(fig3a, fig3b)
+
+```
+
+We created an ordination plot of Bray-Curtis distances among each of our sequenced replicates to visualize any distinct ecological communities present in the dataset (Figure 4a). In agreement with the analysis of variance, technical PCR replicates and biological replicates consistently cluster closely in ordination space, yet two non-overlapping eDNA sequence assemblages appear on this plot. A heatmap of the same Bray-Curtis values reveals the underlying magnitudes of dissimilarity and clustering, showing two clearly distinct communities of eDNA sequences (Fig 4b). The two observed clusters are primarily associated with sampling site: the left-hand community (ordination plot; Fig 4a) is present in all technical and environmental replicates of all Lilliwaup and Potlatch samples, and in all such replicates from a single Twanoh sampling event. We call this "community 1" below. By contrast, the right-hand community ("community 2") is only present in the remaining three Twanoh samples.
+
+##Community Identity by Site and Tide
+
+```{r FIG5_tide_community_figure, fig.width=6, fig.height=3, fig.path='figures/',  echo=F,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE, fig.cap="\\label{fig:fig5}eDNA Communities by Time, Tide, and Site. We identify community type 1 as the dominant eDNA community (as seen in Figure 4, which appears at every geographic site), and community type 2 as the distinct type occurring only at Twanoh. See text for community descriptions."}
+
+
+#plot w ggplot
+    ggplot(data=NOAA[130:350,], aes(x=DateTime, y=Pred))+
+      ylab("Tidal Height (m)")+
+      xlab("Day and Time")+
+      theme_bw()+
+      geom_smooth(se=F, span=.22, na.rm=F, color="grey")+
+      geom_point(aes(shape=substr(sample_name,1,2), color=Community), data=NOAA[!is.na(NOAA$sample_name),], size=4)+
+      labs(shape="Site", color="Community Type")
+```
+
+To further investigate the relationship of each eDNA community with tide, we first assigned membership of each sample to one of the two communities based on a visual examination of our ordination analysis (Figure 4a; polygon color) and plotted community membership of each sample across the tidal cycle during collection (Figure 5). Both figures qualitatively indicate a lack of association between tidal direction or height and either of the two eDNA communities. Quantitatively, by sampling event, community is independent of tidal height (p = `r round(summary(lm(Pred~Community, data=NOAA))$coeff[8], 3)`; linear regression) and of tidal direction (incoming vs. outgoing; p = `r round(chisq.test(x=rrMeta$Tide, y=rrMeta$Community)$p.value, 3)`; $\chi^2$), but is related imperfectly to site identity (p = `r fisher.test(rrMeta$Site.x, rrMeta$Community)$p.value`; Fisher's exact test). The fact that Twanoh hosts different communities at different times indicates that geography does not fully explain differences between these communities, and that ecological variables warrant further investigation as driving differences in communities.
+
+
+
+```{r glm_covariates}
+glm.model<-glm(Community~Temperature+Salinity_refractometer, data=rrMeta, family="binomial")
+
+```
+
+
+##Environmental Co-variates Assocated with Community Change
+
+To identify ecological factors that might distinguish the two eDNA assemblages observed, we modeled the association of each sample's temperature, salinity, and site identity with communities 1 and 2. Salinity and temperature explain nearly all of the variance in community type (logistic regression best-fit model; null deviance = `r summary(glm.model)$null.deviance`, residual deviance = `r summary(glm.model)$deviance`): we observe community 2 in fresher (< 20ppt salinity) and colder (< 9\(^\circ\)C) water than we find community 1. Twanoh, in the southeastern portion of Hood Canal most distant from the ocean, routinely experiences these kinds of fresher, colder water events in our sampling month (March), unlike the main stem of the Canal (Supplemental Figure 4). 
+
+In summary, the eDNA communities are more closely associated with ecological variables -- salinity and temperature -- than with tide, or even with geographical origin. This suggests that the two eDNA assemblages may represent different aqueous habitat types, and led us to investigate their taxonomic composition. We summarize the ecological and biological context of each community sample in Figure 6, before highlighting the taxa that are particularly influential in defining the two communities. 
+
+##Taxa Associated with Distinct Communities
+
+```{r FIG6_multiplot_community_membership, fig.width=5, fig.height=6.8, fig.path='figures/',  echo=F,fig.cap="\\label{fig:fig6}Tidal height (m), Water temperature (C), Salinity (ppt), and proportion of DNA reads allocated among the top 10 Families in the annotated dataset. Two temperature points are missing due to a failure of equipment."}
+  #################
+    NOAA2<-
+      NOAA%>%
+      rename(bottle = sample_name)%>%
+      filter(!is.na(bottle))%>%  
+      mutate(bottle = substr(bottle, 1, 11), Temperature = as.numeric(Temperature))%>%
+      unique()%>%
+      mutate(BottleOrder = seq(1, nrow(.), 1))
+
+    FamilyCountsSums<-
+      aggregate.data.frame(t(FamilyCounts), list(substr(colnames(FamilyCounts),1,11)), FUN=sum)%>%
+      Col2RN(1)%>%
+      t()
+    #FamilyCountsSums<-FamilyCountsSums[,-2]  # LL20170311B is unreplicated; remove
+
+        
+s1<-ggplot(aes(y=Pred, x=BottleOrder, color=Community, group=Pred), data=NOAA2)+geom_line(size=2)+xlab("")+ylab("Tide Height")+guides(color=F)+
+    coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(0,5,-5.5,5), "pt"))+theme(axis.title=element_text(size=8))
+
+s2<-ggplot(aes(y=Temperature, x=BottleOrder, color=Community, group=Pred), data=NOAA2[!is.na(NOAA2$Temperature),])+geom_line(size=2)+xlab("")+ylab("Temperature")+guides(color=F)+coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-5.5,5), "pt"))+theme(axis.title=element_text(size=8))
+
+#s3<-ggplot(aes(y=Qubit_ngul, x=BottleOrder, color=Community), data=NOAA2)+geom_point(size=2)+xlab("")+ylab("Total DNA Recovered")+guides(color=F)+
+#    coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-5.5,8), "pt"))+theme(axis.title=element_text(size=8))
+
+s4<-ggplot(aes(y=Salinity_refractometer, x=BottleOrder, color=Community, group=Pred), data=NOAA2)+geom_line(size=2)+xlab("")+ylab("Salinity")+guides(color=F)+
+    coord_cartesian(xlim=c(2, 34))+theme_bw()+theme(axis.text.x = element_blank())+theme(plot.margin = unit(c(-5,5,-12,5), "pt"))+theme(axis.title=element_text(size=8))
+
+  
+z<-FamilyCountsSums
+  z<-z[order(rowSums(z), decreasing=T),]
+  z<-z[1:10,]; z<-sweep(z, 2, colSums(z), "/")
+  z<-data.frame(Family=row.names(z), z)
+  z<-melt(z, id="Family")
+  z$variable<-factor(z$variable, levels=unique(NOAA2$bottle))
+s5<-ggplot(z, aes(y=value, x=variable, fill=Family))+
+    geom_bar(stat='identity')+theme_minimal()+scale_fill_brewer(palette="Spectral")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "bottom",
+          axis.title=element_text(size=8),
+          plot.margin = unit(c(0,3,0,0), "pt"),
+          legend.text=element_text(size=6),
+          legend.title = element_blank()
+    )+
+    guides(fill=guide_legend(ncol=5))+xlab("Sample")+ylab("Proportion Reads, Top 10 Families")
+
+#multiplot(s1,s2,s3,s4,s5, layout=matrix(c(1,2,3,4,5,5,5), nrow=7, ncol=1))     
+multiplot(s1,s2,s4,s5, layout=matrix(c(1,2,3,4,4,4), nrow=6, ncol=1))     
+```
+
+
+To identify the taxonomic groups that most strongly differentiate ecological communities 1 and 2 at Twanoh, the location at which we detected both communities at different points in time, we performed a constrained canonical correspondence analysis (CCA) principal component analysis on the OTU counts. We constrained the ordination by community identity as determined by the distance analyses above and filtered for highly discriminating OTUs with high read counts (> 1000 reads) to identify a set of high-leverage taxa distinguishing communities. The result was seven Families (Fig 7), two of which are animals -- Balanidae (barnacles; sessile as adults) and Acartiidae (copepods; planktonic) -- and the others of which are autotrophic groups consisting of dinoflagellates (Oxytoxaceae), chlorophytes (Mamiellaceae, Bathycoccaceae), a sessile brown alga (Scytosiphonaceae), and a another heterokont, Triparmaceae. A handful of taxa therefore distinguishes the two communities we identify with COI. However, given the well-known effects of primer bias -- by which the apparent abundance of some taxa can be grossly distorted by equating read count to organismal abundance -- we stress that here we are using a single primer set as an index of community similarity, rather than as an accurate reflection of the abundances of taxa present in the water.
+
+
+```{r FIG7_TW_Families_turnover, fig.width=4, fig.height=5, fig.path='figures/',  echo=F, warning=F, message=F, fig.cap="\\label{fig:fig7}Most influential OTUs, plotted by taxonomic Order, distinguishing the two ecological communities observed in water samples from Twanoh State Park. Shown are the taxonomic Families of OTUs with at least 1000 reads in the rarefied dataset, and having a constrained canonical correspondence analysis (CCA) score of greater than 0.7 (absolute value), which in our dataset most clearly divides the two communities. See text for CCA details. The vertical black lines in the chart delineate the communities identified previously by NMDS (see Figure 3a), with the time of each sample given along the x-axis, showing the shift from one community to the other -- and then largely back again -- within less than 24 hours. Note that each block of samples reflects a different point in the tidal cycle, and that the first two time points indicate a continuity of community membership despite a change in tide (see Figure 4)."}
+#just TW
+  TW.OTUs<-rrOTUs[,grepl("TW", colnames(rrOTUs))]; TW.OTUs<-TW.OTUs[rowSums(TW.OTUs)>0,]
+z<-cca(t(TW.OTUs)~rrMeta$Community[rrMeta$Site.x=="Twanoh"])
+
+#plot(data.frame(z$CCA$v, rowSums(TW.OTUs))) #visualize influential data points
+InfluentialOTUs<-TW.OTUs[which(rowSums(TW.OTUs)>1000&abs(z$CCA$v)>.7),]
+InfluentialOTUs<-aggregate.data.frame(InfluentialOTUs, list(tax[row.names(InfluentialOTUs),"OTU_taxon_family"]), FUN=sum)
+#InfluentialOTUs<-InfluentialOTUs[-match(c("No hits", "Not assigned"), InfluentialOTUs[,1]),]
+InfluentialOTUs<-Col2RN(InfluentialOTUs, 1)
+InfluentialOTUs<-aggregate(t(InfluentialOTUs), list(substr(colnames(InfluentialOTUs),1,11)), sum)  #aggregate by bottle
+  InfluentialOTUs<-t(Col2RN(InfluentialOTUs, 1))
+
+InfluentialOTUsMelted<- melt(as.matrix(InfluentialOTUs))
+
+ggplot(InfluentialOTUsMelted[grepl("TW", InfluentialOTUsMelted$Var2),], aes(x=Var2, y=Var1, fill=log(value)))+
+  geom_tile()+
+  theme_bw()+
+  scale_fill_gradient(low = "white",high = "steelblue", name="Log(Reads)")+
+  ggtitle("Twanoh, Most Influential OTUs by Taxon")+
+  scale_y_discrete("OTU by Taxon", labels=row.names(InfluentialOTUs), expand=c(0,0))+
+  scale_x_discrete("Sample Date and Time", labels=format(rrMeta$DateTime[rrMeta$Site.x=="Twanoh"], "%Y-%m-%d %H:%M"), expand=c(0,0))+
+  geom_vline(aes(xintercept=6.5),colour="black")+
+  geom_vline(aes(xintercept=9.5),colour="black")+
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5, margin = margin(t = 10, b = 15, r=15), size=10),
+        legend.position="bottom",
+        axis.text.x = element_text(angle = 90, hjust = 1, size=6),
+        aspect.ratio = 1
+        )
+
+```
+
+
+
+
+
+
+#Discussion
+
+Environmental DNA is rapidly becoming an essential and widely-used tool to identify community membership in aquatic environments [@deiner2017environmental; @thomsen2015environmental; @kelly2016genetic; @taberlet2012environmental; @yamamoto2016environmental; @spear2015using]. It is not yet clear to what extent the sequences identified in eDNA studies reflect the presence of local organisms in time and space, however [@jane2015distance; @wilcox2016understanding; @MEC:MEC13481]. Of particular interest in marine systems is the influence of tide on the detection of ecological communities: must sampling schemes standardize tidal height and direction during collection to detect consistent groups of species? Does each tide bring with it a turnover in water, carrying exogenous DNA, or do the sequences detected at any given time accurately reflect the species present within a habitat in that moment? But more generally for eDNA studies, to what extent must we worry about where DNA comes from and where it goes? To address these questions, we collected and analyzed eDNA communities at three different sites along the Hood Canal over the course of multiple tidal turnovers. Thus, for each site, we were able to examine the influence of reversals in tidal direction and larger-scale changes in the water present at our study sites.
+
+When analyzed together, eDNA collections from three locations (Lilliwaup, Potlatch, and Twanoh) show substantial variance in OTU membership and prevalence associated primarily with geographic location (Figure 2). Grouping of samples in ordination space is also strongly associated with site, rather than with tide (Figure 4a). Together, these results suggest that eDNA surveys designed to clarify relationships between distinct ecological communities are not likely to suffer substantially from sample collection at varying points in the tidal cycle, because the twice-daily exchange of water into- and out of our sampling sites appeared to have little influence on the sequences detected overall. 
+
+Although the effect of tide on eDNA community composition is small when multiple geographic sites are considered simultaneously, tidal direction may still influence the OTUs detected within a single location. The existence of among-site differences in ecological communities in fact provide the resolution necessary to detect such a local influence of tide, if present - exogenous DNA arriving periodically with tidal flow at each site might closely resemble neighboring communities, and differ consistently from endogenous DNA collected on the ebb tide, which has spent hours in contact with local benthic flora and fauna. A site-by-site analysis reveals that a significant proportion of the variance in OTU counts is associated with tide, but never as much as is associated with differences between sampling events (Figure 2). These results suggest community variance among individual sampling events, although small in an absolute sense, dominates changes at the site scale and accordingly that there is no coherent incoming- or outgoing-tide eDNA fauna. Additionally, the eDNA community present at a single site tends to drift little over time and with successive tidal turnovers (Figure 3), instead changing in association with changes in salinity and temperature of the water mass present at the time of sampling (Figure 6, Supplemental Figure 3). Together, these results suggest that the effect of tidal flow, *per se*, on eDNA community membership is minimal relative to the differences associated with changes in water characteristics and geographic site.  
+
+Rather than tide, ecological variables such as temperature and salinity, each of which differ among sites and sampling events, drive the bulk of the variance in eDNA community membership (Figure 6 and multiple regression). At Twanoh, we sampled by chance a dramatic shift in species composition from community 2 to community 1 within the span of just a few hours, and a concomitant shift towards warmer, more saline water relative to baseline. Of the seven families most notably associated with this turnover, four single-celled planktonic taxa (Triparmaceae, Oxytoxaceae, Mamiellaceae, and Bathycoccoceae) increased in OTU count with intrusion of the warmer, saltier water mass. By contrast, two families with sessile adults (Balanidae and Scytosiphonaceae) and one planktonic animal (Arctiideae) decreased (Figure 7). These results broadly suggest that eDNA survey methodology succeeds in identifying the planktonic species physically present within the water column at the time of sampling. Additionally, the entrance and exit of a mobile, aqueous habitat with characteristics more common at neighboring sites diminishes but does not eradicate the signal from sessile groups. In summary, the sequenced eDNA community reflects contributions from both organisms living within the water itself, as well as immobile species in contact with that more mobile community.
+
+Taken together, our results suggest that eDNA samples taken from even highly dynamic environments reflect recent contributions from local species. With the exception of the occasional movement of water masses representing distinct habitats for planktonic organisms, the eDNA communities we sampled at three geographic sites were largely stable over time and tide. Practically, this suggests that intertidal eDNA research should be performed with substantial attention to ecological variables such as temperature and salinity, which serve as markers of the aqueous habitat present and which may not remain consistent geographically. In contrast, tidal turnover itself appears to be a secondary consideration that does not dramatically or consistently affect the commmunity sampled, even within a single geographic location. Marine intertidal eDNA surveys therefore appear to reflect the endogenous DNA of the organisms present in the water and on the benthic substrate at the time of sampling.
+
+##Acknowledgements
+We thank K. Cribari for lab assistance, as well as R. Morris, G. Rocap, and V. Armbrust at the UW Center for Environmental Genomics. Special thanks to M. Kelly, A. Ramón-Laca, and E. Flynn for facilitating fieldwork, and Julieta, Damián, and Owen for field assistance.  We are also greatful to L. Park, J. O'Donnell, K. Nichols, and P. Schwenke at NMFS for sequencing support and expertise. 
+
+##Funding
+This work was made possible by grant 2016-65101 from the David and Lucile Packard Foundation to RPK. The funders had no role in study design, data collection and analysis, decision to publish, or preparation of the manuscript.
+
+##Grant Disclosures
+The following grant was disclosed by the authors:
+David and Lucile Packard Foundation: 2016-65101.
+
+\newpage
+
+#Supplemental Information
+
+
+```{r Supplement_GPScoordinatesSamplingAreas, echo=F, message=F}
+
+kable(data.frame(
+  Site=c("Lilliwaup State Park","Potlatch State Park","Twanoh State Park"),
+  Latitude=c(47.462,47.377,47.378),
+  Longitide=c(-123.113,-123.150,-122.973)
+), format="latex", align="c", caption="Supplemental Table 1: Sampling Sites in Hood Canal, Washington, USA. Samples were taken intertidally, in water less than 1m deep.")
+```
+
+
+```{r SupplTaxonSummaryTable}
+kable(read.csv("TaxonCountsSummaryTable_20171012.csv",colClasses=c("NULL",NA,NA,NA,NA,NA,NA, NA))[,-6], style='Latex', align="c", caption="Summary of unique annotations, by taxonomic rank, in the COI dataset.")
+```
+
+
+```{r Supplement_Rarefaction_data, fig.width=4, fig.height=4, fig.path='figures/',  echo=F, message=F, fig.cap="\\label{fig:SuppFig1} Differences among rarefaction draws expressed as median Bray-Curtis dissimilarities. The lack of variation in median dissimilarity among rarefaction draws underscores the fact that the results we present in the main manuscript do not differ substantially among different rarefaction draws."}
+
+#Note: the loop below takes a minute or two to process, so I have saved output to save time.
+# rrSupplement<-list()
+# for (i in 1:100){
+# rrSupplement[[i]]<-
+# 	DECONTAM%>%
+# 	t(.)%>%
+# 	rrarefy(.,min(rowSums(.)))%>%
+#   vegdist(method="bray")%>%
+#   as.vector()
+# }
+#save(rrSupplement, file="rrSupplement_rarefactionDraws.Rdata")
+load("rrSupplement_rarefactionDraws.Rdata")
+hist(unlist(lapply(rrSupplement, median)), xlim=c(0.3,0.5), main="Median Bray-Curtis Dissimilarity\nEach of 100 Rarefaction Draws", xlab="Bray-Curtis Dissimilarity", cex.main=.9)
+
+```
+
+
+```{r stochastic_variation_rareTail, echo=FALSE,warning=FALSE,message=FALSE, error=FALSE,  fig.height = 3, fig.width = 4, fig.cap="\\label{fig:SuppFig2}Variation among technical (PCR) replicates, expressed as Bray-Curtis dissimilarity among replicates using data subsets according to OTU commonness. Replicates are similar with respect to common OTUs, but stochasticity quickly dominates as OTUs become rarer, such that PCR replicates appear quite different with respect to OTUs in the bottom 90 percent of commonness."}
+		binNo<-cut(1:nrow(rrOTUs), 100, labels=F)  #N equal-sized groups
+		MeanBC<-list()
+		replicates=substr(colnames(rrOTUs), 1,11) #create vector of replicate names
+		for (j in 1:length(unique(binNo))){
+			distmat<-vegdist(t(rrOTUs[binNo==j,]), upper=T, diag=F)
+			  #calculate bray-curtis distances
+			distList=list(NA) ; distList.tri=list(NA); index=1  #create empty lists to fill in, and then create list of matrices, each of which is distances among replicates
+				index=1
+				for (i in unique(replicates)){
+					rowMatch<-replicates%in%i
+					distList[[index]]<-as.matrix(distmat)[rowMatch, rowMatch]
+							distList.tri[[index]]<-	distList[[index]][upper.tri(	distList[[index]])]
+					index=index+1
+				}
+        for (i in 1:length(distList)){if(is.matrix(distList[[i]])) diag(distList[[i]])<-NA}			
+				MeanBC[[j]]<-unlist(lapply(distList, mean, na.rm=T))
+		}
+		outBC<-unlist(MeanBC)
+		xdata<-rep(1:length(unique(binNo)), each=length(outBC)/length(unique(binNo)))
+    rareOutData<-data.frame(xdata, outBC)
+		  rareOutData<-filter(rareOutData, outBC>0&!is.na(outBC))
+		
+		ggplot(rareOutData[1:1699,], aes(y=outBC, x=factor(xdata)))+
+		  geom_boxplot(fill="skyblue")+
+		  theme_bw()+
+		  xlab("Percentile OTU Commonness")+ylab("Mean Bray-Curtis Among Technical Replicates")+
+		  ggtitle("Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness")+
+		  theme(
+		    plot.title=element_text(hjust=0.5, size=8),
+		    axis.text.x = element_text(angle=90, size=5),
+		    axis.title.y = element_text(size=8)
+		    )
+		
+		
+#		boxplot(outBC[1:1750]~xdata[1:1750],col="skyblue", main="Mean Bray-Curtis Among Technical Replicates, by OTU Commonnness", xlab="Percentile OTU Commonness", ylab="Mean Bray-Curtis Among Technical Replicates", las=2)
+
+```
+
+```{r salinity_BC_correlations, fig.cap="\\label{fig:SupplFig3}Changes in eDNA community are associated with changes in salinity at each site; note the different scales in both the x and y axes."}
+    LL.lm.sal<-lm(LLmeans[,3]~LLmeans[,1])
+    LL.salPlot<-ggplot(LLmeans, aes(x=LLsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("")+ggtitle("Lilliwaup")+annotate("text", x = 2, y = 0.4, label = lm_eqn(LL.lm.sal), colour="black", size = 3, parse=TRUE)
+
+    PO.lm.sal<-lm(POmeans[,3]~POmeans[,1])
+    PO.salPlot<-ggplot(POmeans, aes(x=POsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("Mean Bray-Curtis Dissimilarity")+ggtitle("Potlatch")+annotate("text", x = 2, y = 0.36, label = lm_eqn(PO.lm.sal), colour="black", size = 3, parse=TRUE)+theme(axis.title.y=element_text(size=6))
+     
+    TW.lm.sal<-lm(TWmeans[,3]~TWmeans[,1])
+    TW.salPlot<-ggplot(TWmeans, aes(x=TWsaldist, y=BCdistance))+geom_point()+geom_smooth(method="lm")+xlab("Change in Salinity (ppt)")+ylab("")+ggtitle("Twanoh")+annotate("text", x = 2, y = 0.9, label = lm_eqn(TW.lm.sal), colour="black", size = 3, parse=TRUE)
+
+      multiplot(LL.salPlot, PO.salPlot, TW.salPlot)
+      
+```
+
+
+```{r ContextualWaterData_WAEcology, fig.cap=paste0("\\label{fig:SupplementalWaterChem}Contextual water data for the month of March from the Washington State Department of Ecology (https://fortress.wa.gov/ecy/eap/marinewq/mwdataset.asp). Plots are arranged north to south, with the southernmost point being Lynch Cove, near our sampled site of Twanoh. Red points indicate Temperature/Salinity data in the range of those in which we observed eDNA Community 2; these are far more common in the southern end of Hood Canal than in the north, which has a stronger oceanic influence. The data show more southern points in the Hood Canal have an increased likelihood of cold, fresh water in March (red points). These make up the following proportions: Admiralty Inlet = 0, Send Creek = 0, Hamma Hamma =",round(nrow(filter(alldata, station=="Hamma" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "Hamma")),2), ", Great Bend = ",round(nrow(filter(alldata, station=="GreatBend" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "GreatBend")),2),", Lynch Cove = ",round(nrow(filter(alldata, station=="LynchCove" & temp < 9 & sal < 20))/nrow(filter(alldata, station == "LynchCove")),2),".")}
+
+Hamma<-read.csv("ECY_waterData/HCB003_0_provisional.csv")
+GreatBend<-read.csv("ECY_waterData/HCB004_0_provisional.csv")
+LynchCove<-read.csv("ECY_waterData/HCB007_0_provisional.csv")
+SendCreek<-read.csv("ECY_waterData/HCB010_0_provisional.csv")
+AdmInlet<-read.csv("ECY_waterData/ADM001_0.csv")
+
+
+alldata<-rbind(Hamma, GreatBend, LynchCove, SendCreek, AdmInlet)
+	alldata$station<-as.character(alldata$station)
+	alldata$station[alldata$station=="HCB003"]<-"Hamma"
+	alldata$station[alldata$station=="HCB007"]<-"LynchCove"
+	alldata$station[alldata$station=="HCB004"]<-"GreatBend"
+	alldata$station[alldata$station=="HCB010"]<-"SendCreek"
+	alldata$station[alldata$station=="ADM001"]<-"AdmInlet"
+      alldata$date<-as.Date(alldata$date, format="%m/%d/%Y")
+      names(alldata)[4:11]<-c("depth","sal","temp","density","chl","DO","DOadj","light")
+      alldata$temp<-as.numeric(as.character(alldata$temp))
+      alldata$sal<-as.numeric(as.character(alldata$sal))
+      alldata$month<-format(alldata$date, format="%m")
+      alldata$year<-format(alldata$date, format="%Y")
+      alldata<-alldata[which(alldata$depth<2&alldata$month=="03"),] #filter by depth and month (March)
+      alldata$station<-factor(alldata$station, levels=c("AdmInlet","SendCreek","Hamma","GreatBend","LynchCove"))
+      alldata<-alldata[!is.na(alldata$sal),]
+      alldata<-alldata[!is.na(alldata$temp),]
+
+
+ggplot(alldata, aes(x=sal, y=temp, color=sal<20&temp<9))+
+	geom_point()+
+	facet_grid(.~ station)+
+  theme_bw()+
+	scale_color_manual(name = "Salinity < 20 \n& Temperature < 9", values = setNames(c("red", "black"), c(T,F)))+
+	geom_vline(xintercept=20, linetype=2)+
+	geom_hline(yintercept=9, linetype=2)+
+  xlab("Salinity (psu)")+ylab("Temperature (C)")+
+  theme(aspect.ratio = 1.68)
+  
+```
+
+```{r SupplTable_EcologySampling, echo=F}
+
+ECYlatlong<-
+  data.frame(rbind(
+    c("Admiralty Inlet", 48.0300,	-122.6167),
+    c("Send Creek", 47.6670,	-122.8200),
+    c("Hamma Hamma", 47.5383,	-123.0083),
+    c("Great Bend", 47.3567,	-123.0233),
+    c("Lynch Cove", 47.3983,	-122.9283)
+  )); colnames(ECYlatlong)<- c("Site Name", "Latitude", "Longitude")
+
+
+kable(ECYlatlong, format="latex", align="c", caption = "Coordinates for WA Department of Ecology water quality sampling sites, which encompass the waters we sampled for the study presented in the main text.")
+
+```
+
+
+
+
+\newpage
+
+#References
+
+	
+	
+	
+
+
