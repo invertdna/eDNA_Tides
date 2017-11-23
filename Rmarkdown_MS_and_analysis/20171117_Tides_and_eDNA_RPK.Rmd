@@ -1067,6 +1067,9 @@ kable(ECYlatlong, format="latex", align="c", caption = "Coordinates for WA Depar
 
 ```
 
+```{r}
+writeLines(capture.output(sessionInfo()), "sessionInfo.txt")
+```
 
 
 
