@@ -1,3 +1,3 @@
 # eDNA_Tides
 
-This is a manuscript, and attendant analysis / data, composed entirely with Rstudio as an experiment in developing more repeatable and efficient science. It is a collaborative effort among Ryan Kelly, Ramón Gallego, and Emily Jacobs-Palmer, in late 2017.
+This is a manuscript, and attendant analysis / data, composed almost entirely with Rstudio as an experiment in developing more repeatable and efficient science. ("Almost" entirely because I had to play around with some formatting in LaTex, and couldn't immediately do it in Rmarkdown). It is a collaborative effort among Ryan Kelly, Ramón Gallego, and Emily Jacobs-Palmer, in late 2017. Finished February 2018, for publication in PeerJ.
