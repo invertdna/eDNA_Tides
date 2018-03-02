@@ -1,0 +1,194 @@
+\documentclass[fleqn,10pt]{wlpeerj} 
+
+\usepackage{longtable}
+\usepackage{fancyhdr}
+
+\lhead{Kelly et al. Tides and eDNA}
+\rhead{PeerJ 2018}
+
+\begin{document}
+
+\flushbottom
+
+%\section*{Supplemental Information: Kelly et al. Tides and eDNA}\label{supplemental-information}
+
+{\Large\textbf{\centerline{Supplemental Information: Kelly et al. Tides and eDNA}}}
+
+\begin{table}[!ht]
+\caption*{\label{tab:Supplement_GPScoordinatesSamplingAreas}Supplemental Table 1: Sampling Sites in Hood Canal, Washington, USA. Samples were taken intertidally, in water less than 1m deep.}
+\centering
+\begin{tabular}[t]{c|c|c}
+\hline
+Site & Latitude & Longitide\\
+\hline
+Lilliwaup State Park & 47.46 & -123.1\\
+\hline
+Potlatch State Park & 47.38 & -123.2\\
+\hline
+Twanoh State Park & 47.38 & -123.0\\
+\hline
+\end{tabular}
+\end{table}
+
+
+\begin{table}[!ht]
+
+\caption*{\label{tab:Jaccard_adonis}Supplemental Table 2: Apportioning variance in Jaccard distance among eDNA communities due to Tide, Site, Sampling Event, Sampling Bottle, and PCR Reaction (Residuals).}
+\centering
+\begin{tabular}[t]{l|c|c|c|c|c|c}
+\hline
+  & Df & SumsOfSqs & MeanSqs & F.Model & R2 & P.value\\
+\hline
+Tide & 1 & 0.6607 & 0.6607 & 2.521 & 0.0218 & 0.001\\
+\hline
+Site & 2 & 2.9267 & 1.4633 & 5.583 & 0.0967 & 0.001\\
+\hline
+Sampling Event & 8 & 4.4366 & 0.5546 & 2.116 & 0.1466 & 0.001\\
+\hline
+Sampling Bottle & 23 & 7.0322 & 0.3057 & 1.167 & 0.2324 & 0.001\\
+\hline
+Residuals & 58 & 15.2016 & 0.2621 & NA & 0.5024 & NA\\
+\hline
+Total & 92 & 30.2577 & NA & NA & 1.0000 & NA\\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+\begin{longtable}[]{@{}cccccc@{}}
+\caption*{Supplemental Table 3: Summary of unique annotations, by
+taxonomic rank, in the COI dataset.}\tabularnewline
+\toprule
+Kingdom & Phylum & Classes & Orders & Families &
+OtherRank\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Kingdom & Phylum & Classes & Orders & Families &
+OtherRank\tabularnewline
+\midrule
+\endhead
+Bacteria & Proteobacteria & 4 & 4 & 2 & 0\tabularnewline
+Diatoms & Bacillariophyta & 11 & 17 & 24 & 5\tabularnewline
+Dinoflagellates & Dinoflagellata & 7 & 12 & 12 & 0\tabularnewline
+Fungi & Ascomycota & 5 & 7 & 10 & 6\tabularnewline
+Fungi & Basidiomycota & 2 & 3 & 3 & 2\tabularnewline
+Fungi & Mucoromycota & 1 & 1 & 1 & 0\tabularnewline
+Heterokonta & Phaeophyceae & 6 & 14 & 37 & 4\tabularnewline
+Metazoa & Annelida & 5 & 9 & 12 & 4\tabularnewline
+Metazoa & Arthropoda & 20 & 67 & 80 & 43\tabularnewline
+Metazoa & Brachiopoda & 0 & 0 & 1 & 0\tabularnewline
+Metazoa & Bryozoa & 1 & 1 & 1 & 0\tabularnewline
+Metazoa & Chordata & 13 & 16 & 17 & 3\tabularnewline
+Metazoa & Cnidaria & 5 & 13 & 18 & 4\tabularnewline
+Metazoa & Echinodermata & 1 & 1 & 2 & 0\tabularnewline
+Metazoa & Gastrotricha & 1 & 1 & 1 & 0\tabularnewline
+Metazoa & Mollusca & 7 & 20 & 23 & 3\tabularnewline
+Metazoa & Nematoda & 1 & 1 & 1 & 0\tabularnewline
+Metazoa & Nemertea & 1 & 2 & 2 & 2\tabularnewline
+Metazoa & Porifera & 7 & 7 & 7 & 1\tabularnewline
+Metazoa & Rotifera & 1 & 1 & 1 & 1\tabularnewline
+Rhodophyta & Rhodophyta & 5 & 13 & 15 & 0\tabularnewline
+Viridiplantae & Chlorophyta & 5 & 7 & 11 & 3\tabularnewline
+Viridiplantae & Streptophyta & 4 & 4 & 4 & 0\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{figures/Supplement_Rarefaction_data-1} 
+
+}
+
+\caption*{\label{fig:SuppFig1} Supplemental Figure 1: Differences among 100 rarefaction draws from the overall dataset, expressed as median Bray-Curtis dissimilarities. The lack of variation in median dissimilarity among rarefaction draws underscores the fact that the results we present in the main manuscript do not differ substantially among different draws.}\label{fig:Supplement_Rarefaction_data}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/stochastic_variation_rareTail-1} 
+
+}
+
+\caption*{\label{fig:SuppFig2}Supplemental Figure 2: Variation among technical (PCR) replicates, expressed as Bray-Curtis dissimilarity among replicates using data subsets according to OTU commonness. Replicates are similar with respect to common OTUs, but stochasticity quickly dominates as OTUs become rarer, such that PCR replicates appear quite different with respect to OTUs in the bottom 90 percent of commonness.}\label{fig:stochastic_variation_rareTail}
+\end{figure}
+
+
+
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{figures/Jaccard_multiplot_NMDS_BottleTide-1} 
+
+}
+
+\caption*{\label{fig:SupplFig3}Supplemental Figure 3: (A) Ordination plot (non-metric multidimensional scaling; NMDS) plot of Jaccard distances among sequenced replicates, by sampling bottle (polygon) and tide (polygon color). Polygons connect communities sequenced from replicate PCR reactions of the same sampled bottle of water. (B) The same data shown as a heatmap, ordered by site identity. Only the Twanoh samples (upper right) stand out as having substantial heterogeneity, reflecting the two different communities present during different sampling events at that site. Site labels: TW = Twanoh, PO = Potlatch, LL = Lilliwaup. Note that Jaccard upweights rare (and therefore stochastic) OTUs relative to the same analyses presented in the main text with Bray-Curtis dissimilarities, and accordingly the Jaccard data have a high level of noise.}\label{fig:Jaccard_multiplot_NMDS_BottleTide}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/salinity_BC_correlations-1} 
+
+}
+
+\caption*{\label{fig:SupplFig4}Supplemental Figure 4: Changes in eDNA community are associated with changes in salinity at each site; note the different scales in both the x and y axes.}\label{fig:salinity_BC_correlations}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/Jaccard_TimeSeries-1} 
+
+}
+
+\caption*{\label{fig:SuppFig5}Supplemental Figure 5:  Comparison of Jaccard distances within a reference sampling event (Time step = 0) and between the reference sample and subsequent samples at the same site (Time Steps 1, 2, and 3). Subsequent time steps reflect the accumulation of ecological eDNA differences over hours as the tide moves in and out. Sites shown individually.}\label{fig:Jaccard_TimeSeries}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/ContextualWaterData_WAEcology-1} 
+
+}
+
+\caption*{\label{fig:SupplementalWaterChem}Supplemental Figure 6: Contextual water data for the month of March from the Washington State Department of Ecology (https://fortress.wa.gov/ecy/eap/marinewq/mwdataset.asp). Plots are arranged north to south, with the southernmost point being Lynch Cove, near our sampled site of Twanoh. Red points indicate Temperature/Salinity data in the range of those in which we observed eDNA Community 2; these are far more common in the southern end of Hood Canal than in the north, which has a stronger oceanic influence. The data show more southern points in the Hood Canal have an increased likelihood of cold, fresh water in March (red points). These make up the following proportions: Admiralty Inlet = 0, Send Creek = 0, Hamma Hamma =0.05, Great Bend = 0.11, Lynch Cove = 0.28.}\label{fig:ContextualWaterData_WAEcology}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/adonis_by_Family_euclidian-1} 
+
+}
+
+\caption*{\label{fig:SuppFig7} Supplemental Figure 7: The portion of variance in community distances due to tide, sampling site, sampling event, sampling bottle, and PCR reaction (residual variance) broken down by taxonomic Family (left-hand axis labels) and phylum (right-hand axis labels). Those Families with phyla given as `NA' have unsettled higher taxonomy and therefore have no assigned phylum according to the NCBI database. Note that here, distances are calculated as Euclidian rather than Bray-Curtis, in order to accommodate the many instances in which zero reads from a particular Family where detected at a given site. Families with at least 100 reads in the overall dataset shown.}\label{fig:adonis_by_Family_euclidian}
+\end{figure}
+
+\begin{figure}[!ht]
+
+{\centering \includegraphics{20180220_Tides_and_eDNA_RPK_files/figure-latex/salinitySlope_by_Family_euclidian-1} 
+
+}
+
+\caption*{\label{fig:SuppFig8} Supplemental Figure 8: Family-level community distances associated with changes in water mass (as measured by change in salinity), broken down by sampling site. Statistically significant slopes (alpha = 0.05) shown; base-10 logs plotted for legibility. Note that here, community distances are calculated as Euclidian rather than Bray-Curtis, both to accommodate the many instances in which zero reads from a particular Family where detected at a given site and to appropriately calculate salinity differences. Lighter-colored boxes indicate stronger associations between community identity (within Family) and salinity. These instances of strong association occur across phyla and life-histories, for example in benthic metazoans and multicellular algae (Balanidae and Scytosiphonaceae) as well as in single-celled planktonic groups such as the Chlorophyta.}\label{fig:salinitySlope_by_Family_euclidian}
+\end{figure}
+
+\begin{table}
+
+\caption*{\label{tab:SupplTable_EcologySampling}Supplemental Table 4: Coordinates for Washington Department of Ecology water quality sampling sites, which encompass the waters we sampled for the study presented in the main text.}
+\centering
+\begin{tabular}[t]{c|c|c}
+\hline
+Site Name & Latitude & Longitude\\
+\hline
+Admiralty Inlet & 48.03 & -122.6167\\
+\hline
+Send Creek & 47.667 & -122.82\\
+\hline
+Hamma Hamma & 47.5383 & -123.0083\\
+\hline
+Great Bend & 47.3567 & -123.0233\\
+\hline
+Lynch Cove & 47.3983 & -122.9283\\
+\hline
+\end{tabular}
+\end{table}
+
+\end{document}
